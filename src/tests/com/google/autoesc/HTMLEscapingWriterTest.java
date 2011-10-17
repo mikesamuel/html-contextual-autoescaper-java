@@ -16,7 +16,7 @@ public class HTMLEscapingWriterTest extends TestCase {
   private void assertWritten(String html, String outContext, String normalized)
       throws Exception {
     StringWriter sw = new StringWriter();
-    HTMLEscapingWriter w = new HTMLEscapingWriter(sw, Context.TEXT);
+    HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
     w.writeSafe(html);
     assertEquals(outContext, w.getContext().toString());
     assertEquals(normalized, sw.toString());
@@ -555,7 +555,7 @@ public class HTMLEscapingWriterTest extends TestCase {
   private void assertTemplateOutput(String msg, String tmpl, String want)
       throws Exception {
     StringWriter sw = new StringWriter();
-    HTMLEscapingWriter w = new HTMLEscapingWriter(sw, Context.TEXT);
+    HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
     int off = 0, end = tmpl.length();
     for (int open; (open = tmpl.indexOf("{{", off)) != -1;) {
       int close = tmpl.indexOf("}}", open + 2);

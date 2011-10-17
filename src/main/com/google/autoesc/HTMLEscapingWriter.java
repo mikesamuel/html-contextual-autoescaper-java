@@ -6,6 +6,7 @@ import java.io.Writer;
 import java.util.EnumMap;
 
 import com.google.autoesc.Context.URLPart;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 
 /**
@@ -23,9 +24,9 @@ public class HTMLEscapingWriter {
    */
   private boolean isStrippingTags;
 
-  public HTMLEscapingWriter(Writer out, Context context) {
+  public HTMLEscapingWriter(Writer out) {
     this.out = out;
-    this.context = context;
+    this.context = Context.TEXT;
   }
 
   Context getContext() { return context; }
@@ -366,7 +367,8 @@ public class HTMLEscapingWriter {
     }
   }
 
-  private void stripTags(String s, Context.Delim delim)
+  @VisibleForTesting
+  void stripTags(String s, Context.Delim delim)
       throws IOException, TemplateException {
     ReplacementTable ortable = rtable;
     ReplacementTable normtable = (delim == Context.Delim.SingleQuote)
