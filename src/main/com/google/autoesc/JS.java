@@ -152,7 +152,7 @@ class JS {
       .add('<', "\\x3c")
       .add('>', "\\x3e")
       .add('\\', "\\\\")
-      .replaceNonAscii(new int[] { 2028, 2029 },
+      .replaceNonAscii(new int[] { 0x2028, 0x2029 },
                        new String[] { "\\u2028", "\\u2029" });
   /**
    * STR_NORM_REPLACEMENT_TABLE is like STR_REPLACEMENT_TABLE but does not
@@ -201,7 +201,7 @@ class JS {
   }
 
   static void escapeValueOnto(Object o, Writer out) throws IOException {
-    new JSValueEscaper(out).escape(o);
+    new JSValueEscaper(out).escape(o, true);
   }
 }
 
@@ -261,32 +261,32 @@ class JSValueEscaper {
     return " /* json: " + problemText.replace("*", "* ") + " */ null ";
   }
 
-  void escape(Object o) throws IOException {
+  void escape(Object o, boolean protectBoundaries) throws IOException {
     // Escape maps and collections to java object and array constructors.
     if (o == null || (seen != null && seen.containsKey(o))) {
       // We surround keyword and numeric values with spaces so they do not
       // merge into other tokens.
       // Surrounding with parentheses might introduce call operators.
-      out.write(" null ");
+      out.write(protectBoundaries ? " null " : "null");
     } else if (o instanceof JSONMarshaler) {
       String json = sanityCheckJSON(((JSONMarshaler) o).toJSON());
       char ch0 = json.charAt(0);  // sanityCheckJSON does not allow empty.
-      if (JS.isJSIdentPart(ch0)) { out.write(' '); }
+      if (protectBoundaries && JS.isJSIdentPart(ch0)) { out.write(' '); }
       out.write(json);
       char chn = json.charAt(json.length() - 1);
-      if (JS.isJSIdentPart(chn)) { out.write(' '); }
+      if (protectBoundaries && JS.isJSIdentPart(chn)) { out.write(' '); }
     } else if (o instanceof Number || o instanceof Boolean) {
       // This might result in free variables NaN and Infinity being read.
-      out.write(' ');
+      if (protectBoundaries) { out.write(' '); }
       out.write(o.toString());
-      out.write(' ');
+      if (protectBoundaries) { out.write(' '); }
     } else if (o instanceof Iterable<?>) {
       markSeen(o);
       char pre = '[';
       for (Object el : (Iterable<?>) o) {
         out.write(pre);
         pre = ',';
-        escape(el);
+        escape(el, false);
       }
       if (pre == '[') {
         out.write("[]");
@@ -304,7 +304,7 @@ class JSValueEscaper {
         out.write('\'');
         JS.STR_REPLACEMENT_TABLE.escapeOnto(k, out);
         out.write("\':");
-        escape(v);
+        escape(v, false);
       }
       if (pre == '{') {
         out.write("{}");
@@ -321,7 +321,7 @@ class JSValueEscaper {
         for (int i = 0; i < len; ++i) {
           out.write(pre);
           pre = ',';
-          escape(Array.get(o, i));
+          escape(Array.get(o, i), false);
         }
         out.write(']');
       }
