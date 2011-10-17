@@ -11,7 +11,7 @@ import com.google.common.base.Throwables;
 /**
  * Utility for computing the next transition in a state.
  */
-public class SafeTextWriter {
+public class HTMLEscapingWriter {
   private Writer out;
   private Writer htmlEscapingWriterDqOk, htmlEscapingWriterSqOk;
   private Context context;
@@ -23,7 +23,7 @@ public class SafeTextWriter {
    */
   private boolean isStrippingTags;
 
-  public SafeTextWriter(Writer out, Context context) {
+  public HTMLEscapingWriter(Writer out, Context context) {
     this.out = out;
     this.context = context;
   }
