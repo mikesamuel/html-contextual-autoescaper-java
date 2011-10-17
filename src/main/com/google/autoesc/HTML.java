@@ -102,12 +102,17 @@ public class HTML {
   }
 
   static final ReplacementTable REPLACEMENT_TABLE = new ReplacementTable()
+      .add('`', "&#96;")
       .add('<', "&lt;")
+      .add('=', "&#61;")
       .add('>', "&gt;")
       .add('+', "&#43;")
       .add('\'', "&#39;")
       .add('&', "&amp;")
-      .add('"', "&#34;");
+      .add('"', "&#34;")
+      // Most HTML5 parsing states treat NUL as an error case and replace it
+      // with U+FFFD, the replacement character.
+      .add((char) 0, "\ufffd");
 
   private static final ReplacementTable NORM_REPLACEMENT_TABLE
       = new ReplacementTable(REPLACEMENT_TABLE)
