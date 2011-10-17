@@ -104,7 +104,6 @@ public class HTML {
   static final ReplacementTable REPLACEMENT_TABLE = new ReplacementTable()
       .add('`', "&#96;")
       .add('<', "&lt;")
-      .add('=', "&#61;")
       .add('>', "&gt;")
       .add('+', "&#43;")
       .add('\'', "&#39;")

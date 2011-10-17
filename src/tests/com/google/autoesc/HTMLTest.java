@@ -35,7 +35,7 @@ public class HTMLTest extends TestCase {
         "\ufffd\1\2\3\4\5\6\7\10\t\n\13\14\r\16\17" +
         "\20\21\22\23\24\25\26\27\30\31\32\33\34\35\36\37" +
         " !&#34;#$%&amp;&#39;()*&#43;,-./" +
-        "0123456789:;&lt;&#61;&gt;?" +
+        "0123456789:;&lt;=&gt;?" +
         "@ABCDEFGHIJKLMNO" +
         "PQRSTUVWXYZ[\\]^_" +
         "&#96;abcdefghijklmno" +
