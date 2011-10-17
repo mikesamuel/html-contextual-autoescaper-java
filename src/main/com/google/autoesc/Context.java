@@ -21,6 +21,10 @@ final class Context {
       State.Text, Delim.None, URLPart.None, JSCtx.Regexp,
       Attr.None, Element.None);
 
+  static final Context GENERIC_TAG = new Context(
+      State.Tag, Delim.None, URLPart.None, JSCtx.Regexp,
+      Attr.None, Element.None);
+
   Context(State state,
           Delim delim,
           URLPart urlPart,
@@ -337,10 +341,6 @@ final class Context {
      * Title corresponds to the RCDATA {@code <title>} element.
      */
     Title,
-    /**
-     * XMP corresponds to the deprecated raw text {@code <xmp>} element.
-     */
-    Xmp,
     ;
   }
 
