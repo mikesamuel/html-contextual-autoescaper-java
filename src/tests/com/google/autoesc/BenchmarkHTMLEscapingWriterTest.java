@@ -69,9 +69,9 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
   private void run(HTMLEscapingWriter w) throws Exception {
     w.writeSafe("<html><head><title>Benchmark</title></head><body><ul>");
     for (int i = 0; i < N_ROWS; ++i) {
-      w.writeSafe("<li onclick=\"picked(");
+      w.writeSafe("<li onclick=picked(");
       w.write(i);
-      w.writeSafe("\">Lorem Ipsum</li>");
+      w.writeSafe(")>Lorem Ipsum</li>");
     }
     w.write("</ul>Lorem Ipsum, some boilerplate &copy; blah</body></html>");
   }
