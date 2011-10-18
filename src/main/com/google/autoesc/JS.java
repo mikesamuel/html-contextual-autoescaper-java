@@ -9,8 +9,11 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nullable;
+
 import com.google.common.collect.ImmutableSet;
 
+/** JS contains utilities for dealing with JavaScript contexts. */
 class JS {
 
   /**
@@ -187,7 +190,7 @@ class JS {
       .add('|', "\\|")
       .add('}', "\\}");
 
-  static void escapeStrOnto(Object o, Writer out) throws IOException {
+  static void escapeStrOnto(@Nullable Object o, Writer out) throws IOException {
     String safe = ContentType.JSStr.derefSafeContent(o);
     if (safe != null) {
       STR_NORM_REPLACEMENT_TABLE.escapeOnto(safe, out);
@@ -196,11 +199,13 @@ class JS {
     STR_REPLACEMENT_TABLE.escapeOnto(o, out);
   }
 
-  static void escapeRegexpOnto(Object o, Writer out) throws IOException {
+  static void escapeRegexpOnto(@Nullable Object o, Writer out)
+      throws IOException {
     REGEX_REPLACEMENT_TABLE.escapeOnto(o, out);
   }
 
-  static void escapeValueOnto(Object o, Writer out) throws IOException {
+  static void escapeValueOnto(@Nullable Object o, Writer out)
+      throws IOException {
     new JSValueEscaper(out).escape(o, true);
   }
 }
@@ -261,7 +266,8 @@ class JSValueEscaper {
     return " /* json: " + problemText.replace("*", "* ") + " */ null ";
   }
 
-  void escape(Object o, boolean protectBoundaries) throws IOException {
+  void escape(@Nullable Object o, boolean protectBoundaries)
+      throws IOException {
     // Escape maps and collections to java object and array constructors.
     if (o == null || (seen != null && seen.containsKey(o))) {
       // We surround keyword and numeric values with spaces so they do not

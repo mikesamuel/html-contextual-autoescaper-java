@@ -3,6 +3,8 @@ package com.google.autoesc;
 import java.io.IOException;
 import java.io.Writer;
 
+import javax.annotation.Nullable;
+
 import com.google.common.annotations.VisibleForTesting;
 
 class CSS {
@@ -145,11 +147,23 @@ class CSS {
       .add('{', "\\7b")
       .add('}', "\\7d");
 
-  static void escapeStrOnto(Object o, Writer out) throws IOException {
+  /**
+   * escapeStrOnto escapes HTML and CSS special characters using
+   * {@code \<hex>+} escapes.
+   */
+  static void escapeStrOnto(@Nullable Object o, Writer out) throws IOException {
     REPLACEMENT_TABLE.escapeOnto(o, out);
   }
 
-  static void filterValueOnto(Object o, Writer out) throws IOException {
+  /**
+   * filterValueOnto allows innocuous CSS values in the output including CSS
+   * quantities (10px or 25%), ID or class literals (#foo, .bar), keyword values
+   * (inherit, blue), and colors (#888).
+   * It filters out unsafe values, such as those that affect token boundaries,
+   * and anything that might execute scripts.
+   */
+  static void filterValueOnto(@Nullable Object o, Writer out)
+      throws IOException {
     String safe = ContentType.CSS.derefSafeContent(o);
     if (safe != null) {
       out.write(safe);

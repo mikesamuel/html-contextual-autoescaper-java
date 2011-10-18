@@ -5,11 +5,14 @@ import java.io.Writer;
 import java.util.Locale;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 import com.google.common.collect.ImmutableMap;
 
-public class HTML {
+/** HTML contains utilities for dealing with HTML contexts. */
+class HTML {
   /** Returns s[off:end] but with any HTML entities decoded. */
-  public static String unescapeString(String s, int off, int end) {
+  static String unescapeString(String s, int off, int end) {
     int amp = off;
     while (amp < end && s.charAt(amp) != '&') { ++amp; }
     if (amp == end) {
@@ -117,7 +120,8 @@ public class HTML {
       = new ReplacementTable(REPLACEMENT_TABLE)
       .add('&', null);
 
-  static void escapeOnto(Object o, Writer out) throws IOException {
+  /** escapeOnto escapes for inclusion in HTML text. */
+  static void escapeOnto(@Nullable Object o, Writer out) throws IOException {
     String safe = ContentType.HTML.derefSafeContent(o);
     if (safe != null) {
       out.write(safe);
@@ -126,9 +130,14 @@ public class HTML {
     REPLACEMENT_TABLE.escapeOnto(o, out);
   }
 
-  static void escapeRCDATAOnto(Object o, Writer out) throws IOException {
+  /** escapeRCDATAOnto escapes for inclusion in an RCDATA element body. */
+  static void escapeRCDATAOnto(@Nullable Object o, Writer out)
+      throws IOException {
     String safe = ContentType.HTML.derefSafeContent(o);
     if (safe != null) {
+      // Normalize the content so that an RCDATA tag, like a
+      // {@code <textarea>} will not be ended prematurely if safe contains
+      // tag-like content including {@code "</textarea>"}.
       NORM_REPLACEMENT_TABLE.escapeOnto(safe, out);
       return;
     }
@@ -139,7 +148,8 @@ public class HTML {
    * filterNameOnto accepts valid parts of an HTML attribute or tag name or
    * a known-safe HTML attribute.
    */
-  static void filterNameOnto(Object o, Writer out) throws IOException {
+  static void filterNameOnto(@Nullable Object o, Writer out)
+      throws IOException {
     String safe = ContentType.HTMLAttr.derefSafeContent(o);
     if (safe != null) {
       out.write(safe);

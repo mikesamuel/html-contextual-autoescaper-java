@@ -1,5 +1,7 @@
 package com.google.autoesc;
 
+import javax.annotation.Nullable;
+
 /**
  * Context describes the state an HTML parser must be in when it reaches the
  * portion of HTML produced by evaluating a particular template node.
@@ -40,7 +42,7 @@ final class Context {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof Context)) { return false; }
     Context d = (Context) o;
     return this.state == d.state
@@ -212,7 +214,7 @@ final class Context {
      * isComment is true for any state that contains content meant for template
      * authors and maintainers, not for end-users or machines.
      */
-    public boolean isComment() {
+    boolean isComment() {
       switch (this) {
         case HTMLCmt:
         case JSBlockCmt:
@@ -226,7 +228,7 @@ final class Context {
     }
 
     /** isInTag return whether this state occurs solely inside an HTML tag. */
-    public boolean isInTag() {
+    boolean isInTag() {
       switch (this) {
         case Tag:
         case AttrName:
@@ -263,8 +265,8 @@ final class Context {
   }
 
   /**
-   * URLPart identifies a part in an RFC 3986 hierarchical URL to allow different
-   * encoding strategies.
+   * URLPart identifies a part in an RFC 3986 hierarchical URL to allow
+   * different encoding strategies.
    */
   enum URLPart {
 

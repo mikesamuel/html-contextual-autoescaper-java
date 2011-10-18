@@ -4,6 +4,11 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.Locale;
 
+import javax.annotation.Nullable;
+
+/**
+ * Utilities for dealing with URL contexts.
+ */
 class URL {
   /**
    * escapeURLOnto normalizes (when norm is true) or escapes its input to
@@ -96,7 +101,11 @@ class URL {
     out.write("0123456789abcdef".charAt(octet & 0xf));
   }
 
-  static String filterURL(Object o) {
+  /**
+   * urlFilter returns its input unless it contains an unsafe protocol in which
+   * case it defangs the entire URL.
+   */
+  static String filterURL(@Nullable Object o) {
     String s;
     String safe = ContentType.URL.derefSafeContent(o);
     if (safe != null) {

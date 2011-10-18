@@ -1,6 +1,12 @@
 package com.google.autoesc;
 
-public class SafeContentString implements SafeContent {
+import javax.annotation.Nullable;
+
+/**
+ * A string of content that is known to satisfy the constraints of its
+ * {@link SafeContentString#getContentType content type}.
+ */
+public final class SafeContentString implements SafeContent {
   private final String content;
   private final ContentType contentType;
 
@@ -19,9 +25,9 @@ public class SafeContentString implements SafeContent {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (o == null) { return false; }
-    if (SafeContentString.class != o.getClass()) { return false; }
+    if (getClass() != o.getClass()) { return false; }
     SafeContentString that = (SafeContentString) o;
     return this.contentType == that.contentType
         && this.content.equals(that.content);

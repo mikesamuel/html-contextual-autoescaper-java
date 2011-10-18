@@ -5,13 +5,22 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.EnumMap;
 
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
+
 import com.google.autoesc.Context.URLPart;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 
 /**
- * Utility for computing the next transition in a state.
+ * A writer like-object that receives chunks of trusted template text via
+ * {@link HTMLEscapingWriter#writeSafe}, and chunks of untrusted content via
+ * {@link HTMLEscapingWriter#write(Object)} and escapes the untrusted content
+ * according to the context established by the trusted portions to prevent XSS.
+ *
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
+@NotThreadSafe
 public class HTMLEscapingWriter {
   private Writer out;
   private Writer htmlEscapingWriterDqOk, htmlEscapingWriterSqOk;
@@ -31,8 +40,15 @@ public class HTMLEscapingWriter {
 
   Context getContext() { return context; }
 
-  public void writeSafe(String s)
-      throws IOException, TemplateException {
+  /**
+   * Emits a string of content from a trusted source.  The content may be
+   * normalized (all attributes are quoted, comments are elided, and stray
+   * {@code '<'} will be escaped to {@code "&lt;"}) but the content will not
+   * be converted from one type to another.
+   *
+   * @param s content from a trusted source like a trusted template author.
+   */
+  public void writeSafe(String s) throws IOException, TemplateException {
     int off = 0;
     int end = s.length();
     while (off < end) {
@@ -47,7 +63,14 @@ public class HTMLEscapingWriter {
     }
   }
 
-  public void write(Object o) throws IOException, TemplateException {
+  /**
+   * Emits a value from an untrusted source by encoding it in the context
+   * of the {@link #writeSafe safe} strings emitted prior.
+   * For example, if the prior safe content is {@code <a onclick="alert(}, then
+   * a JavaScript value is expected, but if the prior safe content is
+   * {@code <a href="/search?q=}, then a URL query parameter is expected.
+   */
+  public void write(@Nullable Object o) throws IOException, TemplateException {
     try {
       writeUnsafe(o);
     } catch (Throwable th) {
@@ -71,7 +94,20 @@ public class HTMLEscapingWriter {
     }
   }
 
-  private void writeUnsafe(Object o) throws IOException, TemplateException {
+  /**
+   * Closes the underlying writer, and raises an error if the content ends in
+   * an inconsistent state -- if a full, valid HTML fragment has not been
+   * written.
+   */
+  public void close() throws IOException, TemplateException {
+    out.close();
+    if (context.state != Context.State.Text) {
+      throw new TemplateException("Incomplete document fragment");
+    }
+  }
+
+  private void writeUnsafe(@Nullable Object o)
+      throws IOException, TemplateException {
     if ("".equals(o)) {
       switch (context.state) {
         case AfterName:
@@ -109,11 +145,24 @@ public class HTMLEscapingWriter {
         switch (context.urlPart) {
           case None:
             String s = URL.filterURL(o);
-            o = s;
+            int i = 0;
+            for (int n = s.length(), cp; i < n; i += Character.charCount(cp)) {
+              cp = s.codePointAt(i);
+              if (!Character.isWhitespace(cp)) { break; }
+            }
+            s = s.substring(i);
             if (s.length() != 0) {
               context = context.withURLPart(URLPart.PreQuery).build();
+              switch (context.state) {
+                case CSSDqStr: case CSSSqStr:
+                  CSS.escapeStrOnto(s, out);
+                  break;
+                default:
+                  URL.escapeOnto(true, s, out);
+                  break;
+              }
             }
-            // $FALL-THROUGH$
+            break;
           case PreQuery:
             switch (context.state) {
               case CSSDqStr: case CSSSqStr:
@@ -357,7 +406,6 @@ public class HTMLEscapingWriter {
       }
       if (isStrippingTags || !s.regionMatches(lt+1, "!DOCTYPE", 0, 8)) {
         emit(s, off, lt);
-        // TODO: exempt if a doctype and lt == 0
         out.write("&lt;");
         off = lt + 1;
       } else {
@@ -962,7 +1010,8 @@ public class HTMLEscapingWriter {
         case CSSURL:
           // Unquoted URLs end with a newline or close parenthesis.
           // The below includes the wc (whitespace character) and nl.
-          while (i < end && s.charAt(i) != '\\' && !isCSSSpace(s.charAt(i)) && s.charAt(i) != ')') {
+          while (i < end && s.charAt(i) != '\\'
+                 && !isCSSSpace(s.charAt(i)) && s.charAt(i) != ')') {
             ++i;
           }
           break;
@@ -1149,6 +1198,7 @@ public class HTMLEscapingWriter {
     }
   }
 
+  /** A writer that wraps another writer to encode written content. */
   private static class EscapingWriter extends FilterWriter {
     private final ReplacementTable rt;
     EscapingWriter(Writer out, ReplacementTable rt) {

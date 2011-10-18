@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.Arrays;
 
+import javax.annotation.Nullable;
+
 class ReplacementTable {
   private String[] table;
   private int[] nonAscii;
@@ -22,7 +24,7 @@ class ReplacementTable {
     replaceNonAscii(t.nonAscii.clone(), t.nonAsciiReplacements.clone());
   }
 
-  ReplacementTable add(char ch, String repl) {
+  ReplacementTable add(char ch, @Nullable String repl) {
     if (ch >= 128) { throw new IllegalArgumentException(); }
     int cp = ch & 0xff;
     if (table.length <= cp) {
@@ -44,7 +46,7 @@ class ReplacementTable {
     return this;
   }
 
-  static String toString(Object o) {
+  static String toString(@Nullable Object o) {
     if (o == null) {
       return "";
     } else if (o instanceof char[]) {
@@ -92,7 +94,7 @@ class ReplacementTable {
     out.write(s, off, end - off);
   }
 
-  void escapeOnto(Object o, Writer out) throws IOException {
+  void escapeOnto(@Nullable Object o, Writer out) throws IOException {
     if (o == null) { return; }
     if (o instanceof char[]) {
       escapeOnto((char[]) o, out);
