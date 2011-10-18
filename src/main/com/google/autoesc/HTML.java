@@ -130,7 +130,7 @@ class HTML {
       // with U+FFFD, the replacement character.
       .add((char) 0, "\ufffd");
 
-  private static final ReplacementTable NORM_REPLACEMENT_TABLE
+  static final ReplacementTable NORM_REPLACEMENT_TABLE
       = new ReplacementTable(REPLACEMENT_TABLE)
       .add('&', null);
 
@@ -142,6 +142,19 @@ class HTML {
       return;
     }
     REPLACEMENT_TABLE.escapeOnto(o, out);
+  }
+
+  /**
+   * normalizeOnto escapes for inclusion in HTML text but does not break
+   * existing entities.
+   */
+  static void normalizeOnto(@Nullable Object o, Writer out) throws IOException {
+    String safe = ContentType.HTML.derefSafeContent(o);
+    if (safe != null) {
+      out.write(safe);
+      return;
+    }
+    NORM_REPLACEMENT_TABLE.escapeOnto(o, out);
   }
 
   /** escapeRCDATAOnto escapes for inclusion in an RCDATA element body. */

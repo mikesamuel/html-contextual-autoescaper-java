@@ -568,13 +568,23 @@ public class HTMLEscapingWriterTest extends TestCase {
 
   private void assertTemplateOutput(String msg, String tmpl, String want)
       throws Exception {
-    StringWriter sw = new StringWriter();
-    HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
+    assertTemplateOutput(msg, tmpl, want, want);
+  }
+
+  private void assertTemplateOutput(
+      String msg, String tmpl, String wantHard, String wantSoft)
+      throws Exception {
+    StringWriter hardBuf = new StringWriter();
+    HTMLEscapingWriter hardEw = new HTMLEscapingWriter(hardBuf);
+    StringWriter softBuf = new StringWriter();
+    HTMLEscapingWriter softEw = new HTMLEscapingWriter(softBuf);
+    softEw.setSoft(true);
     int off = 0, end = tmpl.length();
     for (int open; (open = tmpl.indexOf("{{", off)) != -1;) {
       int close = tmpl.indexOf("}}", open + 2);
       if (off != open) {
-        w.writeSafe(tmpl.substring(off, open));
+        hardEw.writeSafe(tmpl.substring(off, open));
+        softEw.writeSafe(tmpl.substring(off, open));
       }
       String expr = tmpl.substring(open+2, close).trim();
       if (!"".equals(expr)) {
@@ -608,14 +618,17 @@ public class HTMLEscapingWriterTest extends TestCase {
           value = SUBSTS.get(expr);
           if (!SUBSTS.containsKey(expr)) { System.err.println(value); }
         }
-        w.write(value);
+        hardEw.write(value);
+        softEw.write(value);
       }
       off = close + 2;
     }
     if (off != end) {
-      w.writeSafe(tmpl.substring(off));
+      hardEw.writeSafe(tmpl.substring(off));
+      softEw.writeSafe(tmpl.substring(off));
     }
-    assertEquals(msg, want, sw.toString());
+    assertEquals(msg + ":hard", wantHard, hardBuf.toString());
+    assertEquals(msg + ":soft", wantSoft, softBuf.toString());
   }
 
   public final void testSafeWriter() throws Exception {
@@ -629,6 +642,18 @@ public class HTMLEscapingWriterTest extends TestCase {
             "{{H}}",
             "&lt;Hello&gt;"
         );
+    assertTemplateOutput(
+            "existing entities in text",
+            "{{\"foo&amp <bar>\"}}",
+            "foo&amp;amp &lt;bar&gt;",
+            "foo&amp &lt;bar&gt;"
+        );
+    assertTemplateOutput(
+            "existing entities in atts",
+            "<div title='{{\"foo&amp <o'bar>\"}}'>",
+            "<div title='foo&amp;amp &lt;o&#39;bar&gt;'>",
+            "<div title='foo&amp &lt;o&#39;bar&gt;'>"
+    );
     assertTemplateOutput(
             "nonStringValue",
             "{{T}}",

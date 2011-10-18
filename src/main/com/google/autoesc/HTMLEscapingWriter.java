@@ -62,7 +62,7 @@ public class HTMLEscapingWriter {
    */
   private boolean isStrippingTags;
   /**
-   * True if in soft escaping mode.  @see #setSoft
+   * True if in soft escaping mode.  @see #isSoft
    */
   private boolean soft;
 
@@ -137,6 +137,26 @@ public class HTMLEscapingWriter {
     }
   }
 
+  /**
+   * isSoft returns whether this writer attempts to interoperate with systems
+   * that HTML escape inputs by default before they reach this writer.
+   * It treats unsafe content in HTML text and attribute contexts as partially
+   * escaped HTML instead of as plain text.
+   * <p>
+   * For example, when not soft, interpolating the string
+   * {@code "foo&amp <bar>"} into an HTML text content will result in writing
+   * {@code "foo&amp;amp &lt;bar&gt;"} but when soft will result in writing
+   * {@code "foo&amp &lt;bar&gt;"} -- existing entities are not reencoded.
+   *
+   * @see #setSoft
+   */
+  public boolean isSoft() { return soft; }
+
+  /** setSoft sets the interoperability mode used by {@link #isSoft}. */
+  public void setSoft(boolean soft) {
+    this.soft = soft;
+  }
+
   /** @return a {@link Context}. */
   int getContext() { return context; }
 
@@ -207,7 +227,7 @@ public class HTMLEscapingWriter {
               switch (state(context)) {
                 // We conservatively treat <style>background: "$x"</style> as a
                 // URL for the purposes of preventing procotol injection
-                // (where $x starts with "javascipt:"), but CSS escape the 
+                // (where $x starts with "javascipt:"), but CSS escape the
                 // value instead of URL normalizing it.
                 // See comments in tCSS for more detail.
                 case Context.State.CSSDqStr: case Context.State.CSSSqStr:
@@ -251,7 +271,11 @@ public class HTMLEscapingWriter {
         CSS.filterValueOnto(o, out);
         break;
       case Context.State.Text:
-        HTML.escapeOnto(o, out);
+        if (soft) {
+          HTML.normalizeOnto(o, out);
+        } else {
+          HTML.escapeOnto(o, out);
+        }
         break;
       case Context.State.RCDATA:
         HTML.escapeRCDATAOnto(o, out);
@@ -259,7 +283,19 @@ public class HTMLEscapingWriter {
       case Context.State.Attr:
         String safe = ContentType.HTML.derefSafeContent(o);
         if (safe == null) {
-          ((EscapingWriter) out).rt.escapeOnto(o, this.out);
+          ReplacementTable rt;
+          switch (delim(context)) {
+            case Context.Delim.None:
+              rt = soft ? HTML.NORM_REPLACEMENT_TABLE : HTML.REPLACEMENT_TABLE;
+              break;
+            case Context.Delim.SingleQuote:
+              rt = soft ? NORM_HTML_DQ_OK : HTML_DQ_OK;
+              break;
+            default:
+              rt = soft ? NORM_HTML_SQ_OK : HTML_SQ_OK;
+              break;
+          }
+          rt.escapeOnto(o, this.out);
         } else {
           try {
             stripTags(safe, delim(context));
@@ -771,7 +807,7 @@ public class HTMLEscapingWriter {
    */
   private int tRCDATA(String s, int off, int end) throws IOException {
     int i = findSpecialTagEnd(s, off, end);
-    rtable = NORM_HTML;
+    rtable = HTML.NORM_REPLACEMENT_TABLE;
     if (i != -1) {
       int tagStart = i;
       while (s.charAt(tagStart) != '<') { --tagStart; }
@@ -798,6 +834,7 @@ public class HTMLEscapingWriter {
     return end;
   }
 
+  /** nextURLContext returns the context after the URL chars in s[off:end]. */
   private static int nextURLContext(int context, String s, int off, int end) {
     int i = off;
     while (i < end && s.charAt(i) != '#' && s.charAt(i) != '?') { ++i; }
@@ -1315,9 +1352,6 @@ public class HTMLEscapingWriter {
    */
   static final ReplacementTable HTML_DQ_OK
       = new ReplacementTable(HTML.REPLACEMENT_TABLE).add('"', null);
-  /** HTML escaping table that does not muck with existing entities. */
-  static final ReplacementTable NORM_HTML
-      = new ReplacementTable(HTML.REPLACEMENT_TABLE).add('&', null);
   /** Like {@link #HTML_SQ_OK} but does not encode {@code '&'}. */
   static final ReplacementTable NORM_HTML_SQ_OK
       = new ReplacementTable(HTML_SQ_OK).add('&', null);
