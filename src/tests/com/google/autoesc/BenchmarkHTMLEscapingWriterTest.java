@@ -49,8 +49,8 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     }
     long t1 = System.nanoTime();
     System.err.println(
-        "\nnormal:   " + (t1 - t0) + " ns for " + N_RUNS + " of "
-        + N_ROWS + " each");
+        "\nnormal:   " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
+        + N_ROWS + " rows each");
   }
 
   public final void testHTMLEscapeSpeedMemoizing() throws Exception {
@@ -62,8 +62,8 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     }
     long t1 = System.nanoTime();
     System.err.println(
-        "\nmemoized: " + (t1 - t0) + " ns for " + N_RUNS + " of "
-        + N_ROWS + " each");
+        "\nmemoized: " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
+        + N_ROWS + " rows each");
   }
 
   private void run(HTMLEscapingWriter w) throws Exception {
