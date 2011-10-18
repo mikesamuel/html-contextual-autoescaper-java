@@ -14,6 +14,30 @@
 
 /**
  * Provides XSS protection to template languages.
+ *
+ * This provides a writer-like object that provides two methods:
+ * <ul>
+ *   <li>{@link com.google.autoesc.HTMLEscapingWriter#writeSafe}</li>
+ *   <li>{@link com.google.autoesc.HTMLEscapingWriter#write}</li>
+ * </ul>
+ * so that the sequence of calls
+ * <pre>
+ *  w.writeSafe("&lt;b&gt;");
+ *  w.write("I &lt;3 Ponies!");
+ *  w.writeSafe("&lt;/b&gt;\n&lt;button onclick=foo(");
+ *  w.writeObject(ImmutableMap.&lt;String, Object&gt;of(
+ *      "foo", "bar", "\"baz\"", 42));
+ *  w.writeSafe(")&gt;");
+ * </pre>
+ * results in the output
+ * <blockquote>
+ * {@code <b>I &lt;3 Ponies!</b>}
+ * {@code <button onclick="foo({&#34;foo&#34;:&#34;\x22bar\x22&#34;:42})">}
+ * </blockquote>
+ * The safe parts are treated as literal chunks of HTML/CSS/JS, and the unsafe
+ * parts are escaped to preserve security and least-surprise.
+ *
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @javax.annotation.ParametersAreNonnullByDefault
 package com.google.autoesc;
