@@ -24,25 +24,27 @@ import com.google.common.collect.Lists;
 import junit.framework.TestCase;
 
 public final class JSTest extends TestCase {
-  private void assertNextJSCtx(Context.JSCtx want, String tokens) {
+  private void assertNextJSCtx(int wantedJSCtx, String tokens) {
     assertEquals(
-        want, JS.nextJSCtx(tokens, 0, tokens.length(), Context.JSCtx.Regexp));
+        wantedJSCtx,
+        JS.nextJSCtx(tokens, 0, tokens.length(), Context.JSCtx.Regexp));
     assertEquals(
-        want, JS.nextJSCtx(tokens, 0, tokens.length(), Context.JSCtx.DivOp));
+        wantedJSCtx,
+        JS.nextJSCtx(tokens, 0, tokens.length(), Context.JSCtx.DivOp));
     assertEquals(
-        want,
+        wantedJSCtx,
         JS.nextJSCtx("." + tokens + "*", 1, 1 + tokens.length(),
                      Context.JSCtx.Regexp));
     assertEquals(
-        want,
+        wantedJSCtx,
         JS.nextJSCtx("." + tokens + ";", 1, 1 + tokens.length(),
                      Context.JSCtx.DivOp));
     assertEquals(
-        want,
+        wantedJSCtx,
         JS.nextJSCtx(tokens + " ", 0, tokens.length() + 1,
                      Context.JSCtx.Regexp));
     assertEquals(
-        want,
+        wantedJSCtx,
         JS.nextJSCtx(tokens + " ", 0, tokens.length() + 1,
                      Context.JSCtx.DivOp));
   }

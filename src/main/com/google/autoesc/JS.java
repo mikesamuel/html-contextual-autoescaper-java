@@ -43,9 +43,11 @@ class JS {
    * to fail on any known useful programs. It is based on the draft
    * JavaScript 2.0 lexical grammar and requires one token of lookbehind:
    * http://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
+   *
+   * @param precJSCtx one of the {@clink Context.JSCtx} values which is used
+   *    when there are no tokens on the end of s.
    */
-  static Context.JSCtx nextJSCtx(
-      String s, int off, int end, Context.JSCtx preceding) {
+  static int nextJSCtx(String s, int off, int end, int precJSCtx) {
     while (end > off) {
       char ch = s.charAt(end - 1);
       switch (ch) {
@@ -57,7 +59,7 @@ class JS {
       break;
     }
     if (off == end) {
-      return preceding;
+      return precJSCtx;
     }
 
     // All cases below are in the single-byte UTF-8 group.

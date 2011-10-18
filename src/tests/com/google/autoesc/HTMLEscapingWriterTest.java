@@ -32,7 +32,7 @@ public class HTMLEscapingWriterTest extends TestCase {
     StringWriter sw = new StringWriter();
     HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
     w.writeSafe(html);
-    assertEquals(outContext, w.getContext().toString());
+    assertEquals(outContext, Context.toString(w.getContext()));
     assertEquals(normalized, sw.toString());
   }
 

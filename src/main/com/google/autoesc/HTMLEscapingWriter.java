@@ -17,14 +17,19 @@ package com.google.autoesc;
 import java.io.FilterWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.EnumMap;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
-import com.google.autoesc.Context.URLPart;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
+
+import static com.google.autoesc.Context.attr;
+import static com.google.autoesc.Context.delim;
+import static com.google.autoesc.Context.element;
+import static com.google.autoesc.Context.jsCtx;
+import static com.google.autoesc.Context.state;
+import static com.google.autoesc.Context.urlPart;
 
 /**
  * A writer like-object that receives chunks of trusted template text via
@@ -38,7 +43,8 @@ import com.google.common.base.Throwables;
 public class HTMLEscapingWriter {
   private Writer out;
   private Writer htmlEscapingWriterDqOk, htmlEscapingWriterSqOk;
-  private Context context;
+  /** As defined in {@link Context} */
+  private int context;
   private ReplacementTable rtable;
   /**
    * HACK: When stripping tags from trusted HTML content that is interpolated
@@ -52,7 +58,7 @@ public class HTMLEscapingWriter {
     this.context = Context.TEXT;
   }
 
-  Context getContext() { return context; }
+  int getContext() { return context; }
 
   /**
    * Emits a string of content from a trusted source.  The content may be
@@ -66,9 +72,9 @@ public class HTMLEscapingWriter {
     int off = 0;
     int end = s.length();
     while (off < end) {
-      Context oc = context;
+      int oc = context;
       int noff = writeChunk(s, off, end);
-      if (noff < off || (noff == off && oc.state == context.state)) {
+      if (noff < off || (noff == off && state(oc) == state(context))) {
         throw new AssertionError(
             "off=" + off + ", noff=" + noff + ", context=" + oc
             + " -> " + context);
@@ -91,7 +97,7 @@ public class HTMLEscapingWriter {
       // Recovering from a failure to write is problematic since any output
       // buffer could be in an inconsistent state.
       // Prevent reuse of this instance on failure to write.
-      this.context = null;
+      this.context = -1;
       this.out = null;
       this.rtable = null;
       this.htmlEscapingWriterSqOk = htmlEscapingWriterDqOk = null;
@@ -115,7 +121,7 @@ public class HTMLEscapingWriter {
    */
   public void close() throws IOException, TemplateException {
     out.close();
-    if (context.state != Context.State.Text) {
+    if (state(context) != Context.State.Text) {
       throw new TemplateException("Incomplete document fragment");
     }
   }
@@ -123,11 +129,11 @@ public class HTMLEscapingWriter {
   private void writeUnsafe(@Nullable Object o)
       throws IOException, TemplateException {
     if ("".equals(o)) {
-      switch (context.state) {
-        case AfterName:
-        case JS:
-        case JSRegexp:
-        case Tag:
+      switch (state(context)) {
+        case Context.State.AfterName:
+        case Context.State.JS:
+        case Context.State.JSRegexp:
+        case Context.State.Tag:
           break;
         default:
           return;
@@ -135,29 +141,31 @@ public class HTMLEscapingWriter {
     }
     context = nudge(context, out);
     Writer out = this.out;
-    switch (context.delim) {
-      case None: break;
-      case SingleQuote:
+    switch (delim(context)) {
+      case Context.Delim.None: break;
+      case Context.Delim.SingleQuote:
         if (htmlEscapingWriterDqOk == null) {
           htmlEscapingWriterDqOk = new EscapingWriter(out, HTML_DQ_OK);
         }
         out = htmlEscapingWriterDqOk;
         break;
-      case DoubleQuote:
+      case Context.Delim.DoubleQuote:
       // We insert double quotes around quoteless attributes so treat as
       // double quoted here.
-      case SpaceOrTagEnd:
+      case Context.Delim.SpaceOrTagEnd:
         if (htmlEscapingWriterSqOk == null) {
           htmlEscapingWriterSqOk = new EscapingWriter(out, HTML_SQ_OK);
         }
         out = this.htmlEscapingWriterSqOk;
         break;
     }
-    switch (context.state) {
-      case URL: case CSSDqStr: case CSSSqStr:
-      case CSSDqURL: case CSSSqURL: case CSSURL:
-        switch (context.urlPart) {
-          case None:
+    switch (state(context)) {
+      case Context.State.URL:
+      case Context.State.CSSDqStr: case Context.State.CSSSqStr:
+      case Context.State.CSSDqURL: case Context.State.CSSSqURL:
+      case Context.State.CSSURL:
+        switch (urlPart(context)) {
+          case Context.URLPart.None:
             String s = URL.filterURL(o);
             int i = 0;
             for (int n = s.length(), cp; i < n; i += Character.charCount(cp)) {
@@ -166,9 +174,9 @@ public class HTMLEscapingWriter {
             }
             s = s.substring(i);
             if (s.length() != 0) {
-              context = context.withURLPart(URLPart.PreQuery).build();
-              switch (context.state) {
-                case CSSDqStr: case CSSSqStr:
+              context = urlPart(context, Context.URLPart.PreQuery);
+              switch (state(context)) {
+                case Context.State.CSSDqStr: case Context.State.CSSSqStr:
                   CSS.escapeStrOnto(s, out);
                   break;
                 default:
@@ -177,9 +185,9 @@ public class HTMLEscapingWriter {
               }
             }
             break;
-          case PreQuery:
-            switch (context.state) {
-              case CSSDqStr: case CSSSqStr:
+          case Context.URLPart.PreQuery:
+            switch (state(context)) {
+              case Context.State.CSSDqStr: case Context.State.CSSSqStr:
                 CSS.escapeStrOnto(o, out);
                 break;
               default:
@@ -187,63 +195,64 @@ public class HTMLEscapingWriter {
                 break;
             }
             break;
-          case QueryOrFrag:
+          case Context.URLPart.QueryOrFrag:
             URL.escapeOnto(false, o, out);
             break;
           default:
-            throw new AssertionError(context.urlPart.toString());
+            throw new AssertionError(Context.toString(context));
         }
         break;
-      case JS:
+      case Context.State.JS:
         JS.escapeValueOnto(o, out);
         // A slash after a value starts a div operator.
-        context = context.withJSCtx(Context.JSCtx.DivOp).build();
+        context = jsCtx(context, Context.JSCtx.DivOp);
         break;
-      case JSDqStr: case JSSqStr:
+      case Context.State.JSDqStr: case Context.State.JSSqStr:
         JS.escapeStrOnto(o, out);
         break;
-      case JSRegexp:
+      case Context.State.JSRegexp:
         JS.escapeRegexpOnto(o, out);
         break;
-      case CSS:
+      case Context.State.CSS:
         CSS.filterValueOnto(o, out);
         break;
-      case Text:
+      case Context.State.Text:
         HTML.escapeOnto(o, out);
         break;
-      case RCDATA:
+      case Context.State.RCDATA:
         HTML.escapeRCDATAOnto(o, out);
         break;
-      case Attr:
+      case Context.State.Attr:
         String safe = ContentType.HTML.derefSafeContent(o);
         if (safe == null) {
           ((EscapingWriter) out).rt.escapeOnto(o, this.out);
         } else {
           try {
-            stripTags(safe, context.delim);
+            stripTags(safe, delim(context));
           } catch (TemplateException ex) {
             // It's OK to truncate the content here since it is plain text and
             // already normalized as an attribute.
           }
         }
         break;
-      case AttrName: case Tag:
-        context = context.withState(Context.State.AttrName).build();
+      case Context.State.AttrName: case Context.State.Tag:
+        context = state(context, Context.State.AttrName);
         HTML.filterNameOnto(o, out);
         break;
       default:
-        if (context.state.isComment()) {
+        if (Context.State.isComment(context)) {
           // Do nothing.  In writeSafe, we elide comment contents, so skip any
           // value that is written into a comment.
         } else {
-          throw new TemplateException("unexpected state " + context.state);
+          throw new TemplateException(
+              "unexpected state " + Context.toString(context));
         }
     }
   }
 
   private int writeChunk(String s, int off, int end)
       throws IOException, TemplateException {
-    if (context.delim == Context.Delim.None) {
+    if (delim(context) == Context.Delim.None) {
       int i = findSpecialTagEnd(s, off, end);
       if (i != -1) {
         // A special end tag (`</script>`) has been seen and
@@ -260,8 +269,8 @@ public class HTMLEscapingWriter {
     // Find the end of the delimiter.
     int valueEnd = end;  // After any close quote.
     int contentEnd = off;  // At the end of the content but before any quote.
-    switch (context.delim) {
-      case DoubleQuote:
+    switch (delim(context)) {
+      case Context.Delim.DoubleQuote:
         for (; contentEnd < end; ++contentEnd) {
           if (s.charAt(contentEnd) == '"') {
             valueEnd = contentEnd+1;
@@ -269,7 +278,7 @@ public class HTMLEscapingWriter {
           }
         }
         break;
-      case SingleQuote:
+      case Context.Delim.SingleQuote:
         for (; contentEnd < end; ++contentEnd) {
           if (s.charAt(contentEnd) == '\'') {
             valueEnd = contentEnd+1;
@@ -277,7 +286,7 @@ public class HTMLEscapingWriter {
           }
         }
         break;
-      case SpaceOrTagEnd:
+      case Context.Delim.SpaceOrTagEnd:
         for (; contentEnd < end; ++contentEnd) {
           char ch = s.charAt(contentEnd);
           // Determined empirically by running the below in various browsers.
@@ -296,10 +305,10 @@ public class HTMLEscapingWriter {
           }
         }
         break;
-      case None:
+      case Context.Delim.None:
         throw new AssertionError();
     }
-    if (context.delim == Context.Delim.SpaceOrTagEnd) {
+    if (delim(context) == Context.Delim.SpaceOrTagEnd) {
       // http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state
       // lists the runes below as error characters.
       // Error out because HTML parsers may differ on whether
@@ -320,7 +329,7 @@ public class HTMLEscapingWriter {
     // Decode the value so non-HTML rules can easily handle
     //     <button onclick="alert(&quot;Hi!&quot;)">
     // without having to entity decode token boundaries.
-    rtable = context.delim == Context.Delim.SingleQuote
+    rtable = delim(context) == Context.Delim.SingleQuote
         ? HTML_DQ_OK : HTML_SQ_OK;
     {
       String u = HTML.unescapeString(s, off, contentEnd);
@@ -333,7 +342,7 @@ public class HTMLEscapingWriter {
     }
     if (contentEnd == end) { return end; }  // Remain inside the attribute.
     rtable = null;
-    if (context.delim == Context.Delim.SpaceOrTagEnd) {
+    if (delim(context) == Context.Delim.SpaceOrTagEnd) {
       // Close the quote introduced in tTag.
       out.write('"');
     } else {
@@ -341,42 +350,38 @@ public class HTMLEscapingWriter {
     }
     // On exiting an attribute, we discard all state information
     // except the state and element.
-    context = new Context(
-        Context.State.Tag, Context.Delim.None,
-        Context.URLPart.None, Context.JSCtx.Regexp, Context.Attr.None,
-        context.element);
+    context = Context.State.Tag | element(context);
     return valueEnd;
   }
 
   private int transition(String s, int off, int end)
       throws IOException, TemplateException {
-    switch (context.state) {
-      case Text:        return tText(s, off, end);
-      case Tag:         return tTag(s, off, end);
-      case AttrName:    return tAttrName(s, off, end);
-      case AfterName:   return tAfterName(s, off, end);
-      case BeforeValue: return tBeforeValue(s, off, end);
-      case HTMLCmt:     return tHTMLCmt(s, off, end);
-      case RCDATA:      return tRCDATA(s, off, end);
-      case Attr:        return tAttr(s, off, end);
-      case URL:         return tURL(s, off, end);
-      case JS:          return tJS(s, off, end);
-      case JSDqStr:     return tJSDelimited(s, off, end);
-      case JSSqStr:     return tJSDelimited(s, off, end);
-      case JSRegexp:    return tJSDelimited(s, off, end);
-      case JSBlockCmt:  return tBlockCmt(s, off, end);
-      case JSLineCmt:   return tLineCmt(s, off, end);
-      case CSS:         return tCSS(s, off, end);
-      case CSSDqStr:    return tCSSStr(s, off, end);
-      case CSSSqStr:    return tCSSStr(s, off, end);
-      case CSSDqURL:    return tCSSStr(s, off, end);
-      case CSSSqURL:    return tCSSStr(s, off, end);
-      case CSSURL:      return tCSSStr(s, off, end);
-      case CSSBlockCmt: return tBlockCmt(s, off, end);
-      case CSSLineCmt:  return tLineCmt(s, off, end);
-      case Error:       return end;
+    switch (state(context)) {
+      case Context.State.Text:        return tText(s, off, end);
+      case Context.State.Tag:         return tTag(s, off, end);
+      case Context.State.AttrName:    return tAttrName(s, off, end);
+      case Context.State.AfterName:   return tAfterName(s, off, end);
+      case Context.State.BeforeValue: return tBeforeValue(s, off, end);
+      case Context.State.HTMLCmt:     return tHTMLCmt(s, off, end);
+      case Context.State.RCDATA:      return tRCDATA(s, off, end);
+      case Context.State.Attr:        return tAttr(s, off, end);
+      case Context.State.URL:         return tURL(s, off, end);
+      case Context.State.JS:          return tJS(s, off, end);
+      case Context.State.JSDqStr:     return tJSDelimited(s, off, end);
+      case Context.State.JSSqStr:     return tJSDelimited(s, off, end);
+      case Context.State.JSRegexp:    return tJSDelimited(s, off, end);
+      case Context.State.JSBlockCmt:  return tBlockCmt(s, off, end);
+      case Context.State.JSLineCmt:   return tLineCmt(s, off, end);
+      case Context.State.CSS:         return tCSS(s, off, end);
+      case Context.State.CSSDqStr:    return tCSSStr(s, off, end);
+      case Context.State.CSSSqStr:    return tCSSStr(s, off, end);
+      case Context.State.CSSDqURL:    return tCSSStr(s, off, end);
+      case Context.State.CSSSqURL:    return tCSSStr(s, off, end);
+      case Context.State.CSSURL:      return tCSSStr(s, off, end);
+      case Context.State.CSSBlockCmt: return tBlockCmt(s, off, end);
+      case Context.State.CSSLineCmt:  return tLineCmt(s, off, end);
     }
-    throw new IllegalStateException(context.state.toString());
+    throw new IllegalStateException(Context.toString(context));
   }
 
   /** tText is the context transition function for the text state. */
@@ -394,7 +399,7 @@ public class HTMLEscapingWriter {
       }
       if (lt+4 <= end && s.charAt(lt+1) == '!' && s.charAt(lt+2) == '-'
           && s.charAt(lt+3) == '-') {
-        context = context.withState(Context.State.HTMLCmt).build();
+        context = state(context, Context.State.HTMLCmt);
         emit(s, off, lt);  // elide <!--
         return lt+4;
       }
@@ -411,10 +416,10 @@ public class HTMLEscapingWriter {
       }
       int tagEnd = eatTagName(s, tagStart, end);
       if (tagStart != tagEnd) {
-        Context.Element e = isEndTag
+        int el = isEndTag
           ? Context.Element.None : classifyTagName(s, tagStart, tagEnd);
         // We've found an HTML tag.
-        context = context.withState(Context.State.Tag).withElement(e).build();
+        context = element(state(context, Context.State.Tag), el);
         emit(s, off, isStrippingTags ? lt : tagEnd);
         return tagEnd;
       }
@@ -430,13 +435,13 @@ public class HTMLEscapingWriter {
   }
 
   @VisibleForTesting
-  void stripTags(String s, Context.Delim delim)
+  void stripTags(String s, int delim)
       throws IOException, TemplateException {
     ReplacementTable ortable = rtable;
     ReplacementTable normtable = (delim == Context.Delim.SingleQuote)
         ? NORM_HTML_DQ_OK : NORM_HTML_SQ_OK;
     Writer oout = this.out;
-    Context ocontext = this.context;
+    int ocontext = this.context;
     this.context = Context.TEXT;
     this.isStrippingTags = true;
 
@@ -445,14 +450,14 @@ public class HTMLEscapingWriter {
       // Using the transition funcs helps us avoid mangling
       // `<div title="1>2">` or `I <3 Ponies!`.
       while (off < end) {
-        if (context.delim == Context.Delim.None) {
-          if (context.state == Context.State.Text) {
+        if (delim(context) == Context.Delim.None) {
+          if (state(context) == Context.State.Text) {
             this.out = oout;
             this.rtable = normtable;
-          } else if (context.state == Context.State.RCDATA) {
+          } else if (state(context) == Context.State.RCDATA) {
             int i = findSpecialTagEnd(s, off, end);
             if (i < 0) { break; }
-            if (context.element == Context.Element.Textarea) {
+            if (element(context) == Context.Element.Textarea) {
               int tagStart = s.lastIndexOf("<", i);
               normtable.escapeOnto(s, off, tagStart, oout);
             }
@@ -473,7 +478,8 @@ public class HTMLEscapingWriter {
     }
   }
 
-  private static Context.Element classifyTagName(String s, int off, int end) {
+  /** Returns a Context.Element value corresponding to s[off:end] */
+  private static int classifyTagName(String s, int off, int end) {
     if (off + 5 > end) { return Context.Element.None; }
     switch (s.charAt(off)) {
       case 's': case 'S':
@@ -522,41 +528,41 @@ public class HTMLEscapingWriter {
         // Don't bother parsing attribute context when stripping tags, and
         // don't error out on malformed attribute names or values.
         if (delim != 0) {
-          context = context.withState(Context.State.Attr)
-              .withDelim(delim == '"' ? Context.Delim.DoubleQuote
-                         : Context.Delim.SingleQuote)
-              .build();
+          context = delim(
+              state(context, Context.State.Attr),
+              delim == '"' ? Context.Delim.DoubleQuote
+                           : Context.Delim.SingleQuote);
         }
         return end;
       }
     }
     if (s.charAt(i) == '>') {
       emit(s, off, i+1);
-      Context.State state;
+      int state;
       if (!isStrippingTags) {
-        switch (context.element) {
-          case Script: state = Context.State.JS; break;
-          case Style: state = Context.State.CSS; break;
-          case None: state = Context.State.Text; break;
+        switch (element(context)) {
+          case Context.Element.Script: state = Context.State.JS; break;
+          case Context.Element.Style: state = Context.State.CSS; break;
+          case Context.Element.None: state = Context.State.Text; break;
           default: state = Context.State.RCDATA; break;
         }
       } else {
         // When stripping tags, treat all content as RCDATA to avoid wasting
         // time parsing CSS and JS tokens that are just going to be stripped.
-        state = context.element == Context.Element.None
+        state = element(context) == Context.Element.None
             ? Context.State.Text : Context.State.RCDATA;
       }
-      context = context.withState(state).build();
+      context = state(context, state);
       return i+1;
     }
-    Context.State state = Context.State.Tag;
+    int state = Context.State.Tag;
     int j = eatAttrName(s, i, end);
     if (i == j) {
       throw makeTemplateException(
           s, off, i, end,
           "expected space, attr name, or end of tag, but got ");
     }
-    Context.Attr attr;
+    int attr;
     switch (Attr.attrType(s.substring(i, j))) {
       case URL:
         attr = Context.Attr.URL;
@@ -577,7 +583,7 @@ public class HTMLEscapingWriter {
       state = Context.State.AfterName;
     }
     emit(s, off, j);
-    context = context.withState(state).withAttr(attr).build();
+    context = attr(state(context, state), attr);
     return j;
   }
 
@@ -586,7 +592,7 @@ public class HTMLEscapingWriter {
       throws IOException, TemplateException {
     int i = eatAttrName(s, off, end);
     if (i != end) {
-      context = context.withState(Context.State.AfterName).build();
+      context = state(context, Context.State.AfterName);
     }
     emit(s, off, i);
     return i;
@@ -601,24 +607,32 @@ public class HTMLEscapingWriter {
       return end;
     } else if (s.charAt(i) != '=') {
       // Occurs due to tag ending '>', and valueless attribute.
-      context = context.withState(Context.State.Tag).build();
+      context = state(context, Context.State.Tag);
       emit(s, off, i);
       return i;
     }
-    context = context.withState(Context.State.BeforeValue).build();
+    context = state(context, Context.State.BeforeValue);
     // Consume the "=".
     i++;
     emit(s, off, i);
     return i;
   }
 
-  private static final EnumMap<Context.Attr, Context.State> ATTR_START_STATES
-    = new EnumMap<Context.Attr, Context.State>(Context.Attr.class);
+  private static final int[] ATTR_START_STATES
+    = new int[(Context.Attr.MASK >> Context.Attr.SHIFT) + 1];
   static {
-    ATTR_START_STATES.put(Context.Attr.None, Context.State.Attr);
-    ATTR_START_STATES.put(Context.Attr.Script, Context.State.JS);
-    ATTR_START_STATES.put(Context.Attr.Style, Context.State.CSS);
-    ATTR_START_STATES.put(Context.Attr.URL, Context.State.URL);
+    ATTR_START_STATES[Context.Attr.None >> Context.Attr.SHIFT]
+       = Context.State.Attr;
+    ATTR_START_STATES[Context.Attr.Script >> Context.Attr.SHIFT]
+       = Context.State.JS;
+    ATTR_START_STATES[Context.Attr.Style >> Context.Attr.SHIFT]
+       = Context.State.CSS;
+    ATTR_START_STATES[Context.Attr.URL >> Context.Attr.SHIFT]
+       = Context.State.URL;
+  }
+
+  private static final int attrStartState(int attr) {
+    return ATTR_START_STATES[attr >> Context.Attr.SHIFT];
   }
 
   /** tBeforeValue is the context transition function for stateBeforeValue. */
@@ -629,7 +643,7 @@ public class HTMLEscapingWriter {
       return end;
     }
     // Find the attribute delimiter.
-    Context.Delim delim;
+    int delim;
     switch (s.charAt(i)) {
       case '\'':
         delim = Context.Delim.SingleQuote;
@@ -646,10 +660,11 @@ public class HTMLEscapingWriter {
         delim = Context.Delim.SpaceOrTagEnd;
         break;
     }
-    context = context.withState(ATTR_START_STATES.get(context.attr))
-      .withDelim(delim)
-      .withAttr(Context.Attr.None)
-      .build();
+    context = attr(
+        delim(
+            state(context, attrStartState(attr(context))),
+            delim),
+        Context.Attr.None);
     emit(s, off, i);
     return i;
   }
@@ -666,24 +681,12 @@ public class HTMLEscapingWriter {
     return end;
   }
 
-  /**
-   * SPECIAL_TAG_END_MARKERS maps element types to the character sequence that
-   * case-insensitively signals the end of the special tag body.
-   */
-  private static final EnumMap<Context.Element, String> SPECIAL_TAG_END_MARKERS
-    = new EnumMap<Context.Element, String>(Context.Element.class);
-  static {
-    SPECIAL_TAG_END_MARKERS.put(Context.Element.Script,   "</script");
-    SPECIAL_TAG_END_MARKERS.put(Context.Element.Style,    "</style");
-    SPECIAL_TAG_END_MARKERS.put(Context.Element.Textarea, "</textarea");
-    SPECIAL_TAG_END_MARKERS.put(Context.Element.Title,    "</title");
-  }
-
   private int findSpecialTagEnd(String s, int off, int end) {
-    if (context.element != Context.Element.None) {
+    int el = element(context);
+    if (el != Context.Element.None) {
       for (int i = off; (i = s.indexOf("</", off) + 2) != 1; off = i) {
         int j = eatTagName(s, i, end);
-        if (context.element == classifyTagName(s, i, j)) {
+        if (el == classifyTagName(s, i, j)) {
           return j;
         }
       }
@@ -723,17 +726,16 @@ public class HTMLEscapingWriter {
     return end;
   }
 
-  private static Context nextURLContext(
-      Context context, String s, int off, int end) {
+  private static int nextURLContext(int context, String s, int off, int end) {
     int i = off;
     while (i < end && s.charAt(i) != '#' && s.charAt(i) != '?') { ++i; }
     if (i < end) {
-      context = context.withURLPart(Context.URLPart.QueryOrFrag).build();
-    } else if (context.urlPart == Context.URLPart.None
+      context = urlPart(context, Context.URLPart.QueryOrFrag);
+    } else if (urlPart(context) == Context.URLPart.None
                && end != eatWhiteSpace(s, off, end)) {
       // HTML5 uses "Valid URL potentially surrounded by spaces" for
       // attrs: http://www.w3.org/TR/html5/index.html#attributes-1
-      context = context.withURLPart(Context.URLPart.PreQuery).build();
+      context = urlPart(context, Context.URLPart.PreQuery);
     }
     return context;
   }
@@ -745,32 +747,33 @@ public class HTMLEscapingWriter {
       char ch = s.charAt(i);
       switch (ch) {
         case '"': case '\'':
-          context = context
-              .withState(ch == '"'
-                         ? Context.State.JSDqStr : Context.State.JSSqStr)
-              .withJSCtx(Context.JSCtx.Regexp).build();
+          context = jsCtx(
+              state(
+                  context,
+                  (ch == '"' ? Context.State.JSDqStr : Context.State.JSSqStr)),
+              Context.JSCtx.Regexp);
           emit(s, off, i+1);
           return i+1;
         case '/':
           updateJSCtx(s, off, i);
           if (i+1 < end) {
             if (s.charAt(i+1) == '/') {
-              context = context.withState(Context.State.JSLineCmt).build();
+              context = state(context, Context.State.JSLineCmt);
               emit(s, off, i);
               return i+2;
             } else if (s.charAt(i+1) == '*') {
-              context = context.withState(Context.State.JSBlockCmt).build();
+              context = state(context, Context.State.JSBlockCmt);
               emit(s, off, i);
               return i+2;
             }
           }
-          switch (context.jsCtx) {
-            case Regexp:
-              context = context.withState(Context.State.JSRegexp).build();
+          switch (jsCtx(context)) {
+            case Context.JSCtx.Regexp:
+              context = state(context, Context.State.JSRegexp);
               emit(s, off, i+1);
               return i+1;
-            case DivOp:
-              context = context.withJSCtx(Context.JSCtx.Regexp).build();
+            case Context.JSCtx.DivOp:
+              context = jsCtx(context, Context.JSCtx.Regexp);
               break;
             default:
               throw makeTemplateException(
@@ -793,14 +796,14 @@ public class HTMLEscapingWriter {
     boolean inCharset = false;
     while (true) {
       int i = off;
-      switch (context.state) {
-        case JSDqStr:
+      switch (state(context)) {
+        case Context.State.JSDqStr:
           while (i < end && s.charAt(i) != '\\' && s.charAt(i) != '"') { i++; }
           break;
-        case JSSqStr:
+        case Context.State.JSSqStr:
           while (i < end && s.charAt(i) != '\\' && s.charAt(i) != '\'') { i++; }
           break;
-        case JSRegexp:
+        case Context.State.JSRegexp:
           while (i < end && s.charAt(i) != '\\' && s.charAt(i) != '/'
                  && s.charAt(i) != '[' && s.charAt(i) != ']') {
             i++;
@@ -830,8 +833,9 @@ public class HTMLEscapingWriter {
         default:
           // end delimiter
           if (!inCharset) {
-            context = context.withState(Context.State.JS)
-                .withJSCtx(Context.JSCtx.DivOp).build();
+            context = jsCtx(
+                state(context, Context.State.JS),
+                Context.JSCtx.DivOp);
             emit(s, off, i + 1);
             return i + 1;
           }
@@ -855,13 +859,12 @@ public class HTMLEscapingWriter {
    * {@code /*comment*}{@code /} states.
    */
   private int tBlockCmt(String s, int off, int end) throws IOException {
-    boolean isJS = context.state == Context.State.JSBlockCmt;
+    boolean isJS = state(context) == Context.State.JSBlockCmt;
     char replacement = ' ';
     for (int i = off; i < end; ++i) {
       char ch = s.charAt(i);
       if (ch == '*' && i+1 <= end && s.charAt(i+1) == '/') {
-        context = context.withState(isJS ? Context.State.JS : Context.State.CSS)
-            .build();
+        context = state(context, isJS ? Context.State.JS : Context.State.CSS);
         // Do not emit.
         out.write(replacement);
         return i + 2;
@@ -881,11 +884,11 @@ public class HTMLEscapingWriter {
   /** tLineCmt is the context transition function for //comment states. */
   private int tLineCmt(String s, int off, int end) {
     int i = off;
-    if (context.state == Context.State.JSLineCmt) {
+    if (state(context) == Context.State.JSLineCmt) {
       for (; i < end; ++i) {
         char ch = s.charAt(i);
         if (ch == '\n' || ch == '\r' || ch == '\u2028' || ch == '\u2029') {
-          context = context.withState(Context.State.JS).build();
+          context = state(context, Context.State.JS);
           break;
         }
       }
@@ -900,7 +903,7 @@ public class HTMLEscapingWriter {
       for (; i < end; ++i) {
         char ch = s.charAt(i);
         if (ch == '\n' || ch == '\r' || ch == '\f') {
-          context = context.withState(Context.State.CSS).build();
+          context = state(context, Context.State.CSS);
           break;
         }
       }
@@ -965,13 +968,13 @@ public class HTMLEscapingWriter {
               int j = i+1;
               while (j < end && isCSSSpace(s.charAt(j))) { ++j; }
               if (j < end && s.charAt(j) == '"') {
-                context = context.withState(Context.State.CSSDqURL).build();
+                context = state(context, Context.State.CSSDqURL);
                 ++j;
               } else if (j < end && s.charAt(j) == '\'') {
-                context = context.withState(Context.State.CSSSqURL).build();
+                context = state(context, Context.State.CSSSqURL);
                 ++j;
               } else {
-                context = context.withState(Context.State.CSSURL).build();
+                context = state(context, Context.State.CSSURL);
               }
               emit(s, off, j);
               return j;
@@ -982,22 +985,22 @@ public class HTMLEscapingWriter {
           if (i+1 < end) {
             switch (s.charAt(i+1)) {
               case '/':
-                context = context.withState(Context.State.CSSLineCmt).build();
+                context = state(context, Context.State.CSSLineCmt);
                 emit(s, off, i);  // Skip comment open.
                 return i + 2;
               case '*':
-                context = context.withState(Context.State.CSSBlockCmt).build();
+                context = state(context, Context.State.CSSBlockCmt);
                 emit(s, off, i);  // Skip comment open.
                 return i + 2;
             }
           }
           break;
         case '"':
-          context = context.withState(Context.State.CSSDqStr).build();
+          context = state(context, Context.State.CSSDqStr);
           emit(s, off, i+1);
           return i+1;
         case '\'':
-          context = context.withState(Context.State.CSSSqStr).build();
+          context = state(context, Context.State.CSSSqStr);
           emit(s, off, i+1);
           return i+1;
       }
@@ -1014,14 +1017,14 @@ public class HTMLEscapingWriter {
       throws IOException, TemplateException {
     for (;;) {
       int i = off;
-      switch (context.state) {
-        case CSSDqStr: case CSSDqURL:
+      switch (state(context)) {
+        case Context.State.CSSDqStr: case Context.State.CSSDqURL:
           while (i < end && s.charAt(i) != '\\' && s.charAt(i) != '"') { ++i; }
           break;
-        case CSSSqStr: case CSSSqURL:
+        case Context.State.CSSSqStr: case Context.State.CSSSqURL:
           while (i < end && s.charAt(i) != '\\' && s.charAt(i) != '\'') { ++i; }
           break;
-        case CSSURL:
+        case Context.State.CSSURL:
           // Unquoted URLs end with a newline or close parenthesis.
           // The below includes the wc (whitespace character) and nl.
           while (i < end && s.charAt(i) != '\\'
@@ -1030,7 +1033,7 @@ public class HTMLEscapingWriter {
           }
           break;
         default:
-          throw new AssertionError(context.state.toString());
+          throw new AssertionError(Context.toString(context));
       }
       if (i == end) {
         String decoded = CSS.decodeCSS(s, off, end);
@@ -1045,7 +1048,7 @@ public class HTMLEscapingWriter {
               s, off, i-1, end, "unfinished escape sequence in CSS string: ");
         }
       } else {
-        context = context.withState(Context.State.CSS).build();
+        context = state(context, Context.State.CSS);
         emit(s, off, i+1);
         return i+1;
       }
@@ -1165,10 +1168,7 @@ public class HTMLEscapingWriter {
   }
 
   private void updateJSCtx(String s, int off, int end) {
-    Context.JSCtx jsCtx = JS.nextJSCtx(s, off, end, context.jsCtx);
-    if (jsCtx != context.jsCtx) {
-      context = context.withJSCtx(jsCtx).build();
-    }
+    context = jsCtx(context, JS.nextJSCtx(s, off, end, jsCtx(context)));
   }
 
   /**
@@ -1190,23 +1190,22 @@ public class HTMLEscapingWriter {
    * </ul>
    * In this case, nudging produces the context after (1) happens.
    */
-  private static Context nudge(Context c, Writer out) throws IOException {
-    switch (c.state) {
-      case Tag:
+  private static int nudge(int c, Writer out) throws IOException {
+    switch (state(c)) {
+      case Context.State.Tag:
         // In `<foo {{.}}`, the action should emit an attribute.
-        return c.withState(Context.State.AttrName).build();
-      case BeforeValue:
+        return state(c, Context.State.AttrName);
+      case Context.State.BeforeValue:
         // Emit an open double quote to match that emitted by tTag when it
         // transitions directly into a SpaceOrTagEnd context.
         out.write('"');
         // In `<foo bar={{.}}`, the action is an undelimited value.
-        return c.withState(ATTR_START_STATES.get(c.attr))
-            .withDelim(Context.Delim.SpaceOrTagEnd)
-            .withAttr(Context.Attr.None).build();
-      case AfterName:
+        return attr(delim(state(c, attrStartState(attr(c))),
+                          Context.Delim.SpaceOrTagEnd),
+                    Context.Attr.None);
+      case Context.State.AfterName:
         // In `<foo bar {{.}}`, the action is an attribute name.
-        return c.withState(Context.State.AttrName)
-            .withAttr(Context.Attr.None).build();
+        return attr(state(c, Context.State.AttrName), Context.Attr.None);
       default:
         return c;
     }
