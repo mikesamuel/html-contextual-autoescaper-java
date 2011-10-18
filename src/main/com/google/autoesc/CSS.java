@@ -3,6 +3,8 @@ package com.google.autoesc;
 import java.io.IOException;
 import java.io.Writer;
 
+import com.google.common.annotations.VisibleForTesting;
+
 class CSS {
   /**
    * decodeCSS decodes CSS3 escapes given a sequence of stringchars.
@@ -99,6 +101,13 @@ class CSS {
     return off;
   }
 
+  private static boolean isCSSSpace(int cp) {
+    switch (cp) {
+      case '\t': case '\n': case '\f': case '\r': case ' ': return true;
+    }
+    return false;
+  }
+
   /** Escapes HTML and CSS special characters using {@code \<hex>+} escapes. */
   private static final ReplacementTable REPLACEMENT_TABLE
     = new ReplacementTable() {
@@ -107,7 +116,8 @@ class CSS {
             int cp, String repl, int lookahead, Writer out)
             throws IOException {
           out.write(repl);
-          if (cp != '\\' && (lookahead == -1 || isHex((char) lookahead))) {
+          if (cp != '\\' && (lookahead == -1 || isHex((char) lookahead)
+                             || isCSSSpace((char) lookahead))) {
             // Separate the hex-escape from any following hex-digits.
             out.write(' ');
           }
@@ -193,7 +203,8 @@ class CSS {
   /**
    * isCSSNmchar returns whether rune is allowed anywhere in a CSS identifier.
    */
-  private static boolean isCSSNmchar(int rune) {
+  @VisibleForTesting
+  static boolean isCSSNmchar(int rune) {
     // Based on the CSS3 nmchar production but ignores multi-rune escape
     // sequences.
     // http://www.w3.org/TR/css3-syntax/#SUBTOK-nmchar

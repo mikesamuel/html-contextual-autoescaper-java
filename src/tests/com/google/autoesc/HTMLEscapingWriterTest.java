@@ -885,7 +885,7 @@ public class HTMLEscapingWriterTest extends TestCase {
     assertTemplateOutput(
             "styleStrSpecialsEncoded",
             "<a style=\"font-family: '{{\"/**/'\\\";:// \\\\\"}}', &quot;{{\"/**/'\\\";:// \\\\\"}}&quot;\">",
-            "<a style=\"font-family: '\\2f**\\2f\\27\\22\\3b\\3a\\2f\\2f \\\\', &#34;\\2f**\\2f\\27\\22\\3b\\3a\\2f\\2f \\\\&#34;\">"
+            "<a style=\"font-family: '\\2f**\\2f\\27\\22\\3b\\3a\\2f\\2f  \\\\', &#34;\\2f**\\2f\\27\\22\\3b\\3a\\2f\\2f  \\\\&#34;\">"
         );
     assertTemplateOutput(
             "styleURLSpecialsEncoded",
