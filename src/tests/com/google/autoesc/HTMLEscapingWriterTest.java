@@ -1209,6 +1209,71 @@ public class HTMLEscapingWriterTest extends TestCase {
         );
   }
 
+  private void assertErrorMsg(String html, String error) throws Exception {
+    try {
+      HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter());
+      w.writeSafe(html);
+      w.close();
+      fail("Expected error " + error);
+    } catch (TemplateException ex) {
+      assertEquals(html, error, ex.getMessage());
+    }
+    {
+      // None of these error cases trigger exceptions when stripping tags.
+      HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter());
+      w.stripTags(html, Context.Delim.DoubleQuote);
+    }
+  }
+
+  public final void testErrors() throws Exception {
+    assertErrorMsg(
+        // Missing quote.
+        "<a href=\"bar>",
+        "Incomplete document fragment");
+    assertErrorMsg(
+        "<a<a",
+        "< in attribute name: ^<a");
+    assertErrorMsg(
+        "<a <a",
+        "< in attribute name: ^<a");
+    assertErrorMsg(
+        "<a b=1 c=",
+        "Incomplete document fragment");
+    assertErrorMsg(
+        "<script>foo();",
+        "Incomplete document fragment");
+    assertErrorMsg(
+        "<a onclick=\"alert('Hello \\",
+        "unfinished escape sequence in JS string: Hello ^\\");
+    assertErrorMsg(
+        "<a onclick='alert(\"Hello\\, World\\",
+        "unfinished escape sequence in JS string:  World^\\");
+    assertErrorMsg(
+        "<a onclick='alert(/x+\\",
+        "unfinished escape sequence in JS string: x+^\\");
+    assertErrorMsg(
+        "<a onclick=\"/foo[\\]/",
+        "unfinished JS regexp charset: ^");
+    assertErrorMsg(
+        "<input type=button value=onclick=>",
+        "= in unquoted attr: onclick^=");
+    assertErrorMsg(
+        "<input type=button value= onclick=>",
+        "= in unquoted attr: onclick^=");
+    assertErrorMsg(
+        "<input type=button value= 1+1=2>",
+        "= in unquoted attr: 1+1^=2");
+    assertErrorMsg(
+        "<a class=`foo>",
+        "` in unquoted attr: ^`foo");
+    assertErrorMsg(
+        "<a style=font:'Arial'>",
+        "' in unquoted attr: font:^'Arial'");
+    assertErrorMsg(
+        "<a=foo>",
+        "expected space, attr name, or end of tag, but got ^=foo>");
+  }
+
   private static boolean isNumberLit(String s) {
     try {
       Float.parseFloat(s);
