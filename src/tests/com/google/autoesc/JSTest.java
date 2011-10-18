@@ -162,8 +162,8 @@ public final class JSTest extends TestCase {
     assertEscapedValue("<![CDATA[", "'\\x3c![CDATA['");
     assertEscapedValue("]]>", "']]\\x3e'");
     assertEscapedValue("</script", "'\\x3c\\/script'");
-    assertEscapedValue("\ud834\udd13",
-                       "'\ud834\udd13'"); // or "'\\ud834\\udd1E'"
+    // or "'\\ud834\\udd1E'"
+    assertEscapedValue("\ud834\udd1e", "'\ud834\udd1e'");
   }
 
   private String jsStr(String s) throws Exception {
