@@ -92,7 +92,7 @@ class URL {
 
   private static void emitPctOctet(byte octet, Writer out) throws IOException {
     out.write('%');
-    out.write("0123456789abcdef".charAt(octet >>> 4));
+    out.write("0123456789abcdef".charAt((octet >> 4) & 0xf));
     out.write("0123456789abcdef".charAt(octet & 0xf));
   }
 
