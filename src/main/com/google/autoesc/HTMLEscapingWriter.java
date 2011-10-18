@@ -52,13 +52,15 @@ public class HTMLEscapingWriter {
    * emit just the non-tag content.
    */
   private boolean isStrippingTags;
+  /**
+   * True if in soft escaping mode.  @see #setSoft
+   */
+  private boolean soft;
 
   public HTMLEscapingWriter(Writer out) {
     this.out = out;
     this.context = Context.TEXT;
   }
-
-  int getContext() { return context; }
 
   /**
    * Emits a string of content from a trusted source.  The content may be
@@ -74,11 +76,11 @@ public class HTMLEscapingWriter {
     while (off < end) {
       int oc = context;
       int noff = writeChunk(s, off, end);
-      if (noff < off || (noff == off && state(oc) == state(context))) {
-        throw new AssertionError(
-            "off=" + off + ", noff=" + noff + ", context=" + oc
-            + " -> " + context);
-      }
+      // Die early on infinite loops.
+      assert !(noff < off || (noff == off && state(oc) == state(context))):
+          "off=" + off + ", noff=" + noff
+          + ", context=" + Context.toString(oc)
+          + " -> " + Context.toString(context);
       off = noff;
     }
   }
@@ -126,13 +128,27 @@ public class HTMLEscapingWriter {
     }
   }
 
+  /** @return a {@link Context}. */
+  int getContext() { return context; }
+
+  /**
+   * Writes an unsafe value
+   */
   private void writeUnsafe(@Nullable Object o)
       throws IOException, TemplateException {
+    // In code snippets in comments below, $x indicates an unsafe value.
     if ("".equals(o)) {
+      // Normally, emitting the empty string should cause no nudge below, but
+      // in some contexts, the empty output is important.
       switch (state(context)) {
         case Context.State.AfterName:
+        // Do not allow the statement to be pulled left of the inserted semi in
+        // "var x = $x \n foo()"
         case Context.State.JS:
+        // Do not allow "/$x/" to be interpreted as a line comment //.
         case Context.State.JSRegexp:
+        // Do not allow the value in "<input checked $key=$value>" to associate
+        // with the a value-less attribte.
         case Context.State.Tag:
           break;
         default:
@@ -141,6 +157,9 @@ public class HTMLEscapingWriter {
     }
     context = nudge(context, out);
     Writer out = this.out;
+    // Wrap out to escape attribute content.  This allows us to handle
+    // JS/CSS content below the same regardless of whether it's in a <script>
+    // or <a onclick="...">.
     switch (delim(context)) {
       case Context.Delim.None: break;
       case Context.Delim.SingleQuote:
@@ -159,6 +178,7 @@ public class HTMLEscapingWriter {
         out = this.htmlEscapingWriterSqOk;
         break;
     }
+    // Choose an escaper appropriate to the context.
     switch (state(context)) {
       case Context.State.URL:
       case Context.State.CSSDqStr: case Context.State.CSSSqStr:
@@ -176,6 +196,11 @@ public class HTMLEscapingWriter {
             if (s.length() != 0) {
               context = urlPart(context, Context.URLPart.PreQuery);
               switch (state(context)) {
+                // We conservatively treat <style>background: "$x"</style> as a
+                // URL for the purposes of preventing procotol injection
+                // (where $x starts with "javascipt:"), but CSS escape the 
+                // value instead of URL normalizing it.
+                // See comments in tCSS for more detail.
                 case Context.State.CSSDqStr: case Context.State.CSSSqStr:
                   CSS.escapeStrOnto(s, out);
                   break;
@@ -250,6 +275,15 @@ public class HTMLEscapingWriter {
     }
   }
 
+  /**
+   * Write a chunk of safe string content.
+   * This method establishes the calling convention used below where
+   * s[off:end] is the portion of the string being processed.
+   *
+   * @param off the offset into s to start writing.
+   * @param end the end into s of the chunk to write.
+   * @return the offset of the remaining unprocessed portion.
+   */
   private int writeChunk(String s, int off, int end)
       throws IOException, TemplateException {
     if (delim(context) == Context.Delim.None) {
