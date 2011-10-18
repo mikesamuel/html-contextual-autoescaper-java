@@ -24,6 +24,8 @@ import com.google.common.collect.Maps;
 /**
  * An {@link HTMLEscapingWriter} that is more efficient at handling repeated
  * context transitions.
+ *
+ * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
   // TODO: limit cache size
