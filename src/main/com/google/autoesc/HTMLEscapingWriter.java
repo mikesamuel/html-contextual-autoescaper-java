@@ -1366,5 +1366,10 @@ public class HTMLEscapingWriter {
     @Override public void write(char[] cbuf, int off, int len) { /* no-op */ }
     @Override public void write(String s, int off, int len) { /* no-op */ }
     @Override public void write(int c) { /* no-op */ }
- };
+  };
+
+  // Privileged accessors for memoizing writer.
+  void setContext(int context) { this.context = context; }
+  Writer getWriter() { return this.out; }
+  void replaceWriter(Writer out) { this.out = out; }
 }

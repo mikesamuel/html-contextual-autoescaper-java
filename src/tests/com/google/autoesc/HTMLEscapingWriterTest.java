@@ -549,7 +549,7 @@ public class HTMLEscapingWriterTest extends TestCase {
   }
 
   private static Map<String, Object> SUBSTS
-    = ImmutableMap.<String, Object>builder()
+      = ImmutableMap.<String, Object>builder()
     .put("F", false)
     .put("T", true)
     .put("C", "<Cincinatti>")
@@ -574,17 +574,30 @@ public class HTMLEscapingWriterTest extends TestCase {
   private void assertTemplateOutput(
       String msg, String tmpl, String wantHard, String wantSoft)
       throws Exception {
-    StringWriter hardBuf = new StringWriter();
-    HTMLEscapingWriter hardEw = new HTMLEscapingWriter(hardBuf);
-    StringWriter softBuf = new StringWriter();
-    HTMLEscapingWriter softEw = new HTMLEscapingWriter(softBuf);
-    softEw.setSoft(true);
+    // We want to test a number of implementations:
+    // (soft, hard) x (memoizing, non-memoizing)
+    StringWriter[] bufs = new StringWriter[] {
+        new StringWriter(tmpl.length() * 2),
+        new StringWriter(tmpl.length() * 2),
+        new StringWriter(tmpl.length() * 2),
+        new StringWriter(tmpl.length() * 2),
+    };
+    HTMLEscapingWriter[] ws = new HTMLEscapingWriter[] {
+        new HTMLEscapingWriter(bufs[0]),
+        new HTMLEscapingWriter(bufs[1]),
+        new MemoizingHTMLEscapingWriter(bufs[2]),
+        new MemoizingHTMLEscapingWriter(bufs[3]),
+    };
+    ws[1].setSoft(true);
+    ws[3].setSoft(true);
+
     int off = 0, end = tmpl.length();
     for (int open; (open = tmpl.indexOf("{{", off)) != -1;) {
       int close = tmpl.indexOf("}}", open + 2);
       if (off != open) {
-        hardEw.writeSafe(tmpl.substring(off, open));
-        softEw.writeSafe(tmpl.substring(off, open));
+        for (HTMLEscapingWriter w : ws) {
+          w.writeSafe(tmpl.substring(off, open));
+        }
       }
       String expr = tmpl.substring(open+2, close).trim();
       if (!"".equals(expr)) {
@@ -618,17 +631,26 @@ public class HTMLEscapingWriterTest extends TestCase {
           value = SUBSTS.get(expr);
           if (!SUBSTS.containsKey(expr)) { System.err.println(value); }
         }
-        hardEw.write(value);
-        softEw.write(value);
+        for (HTMLEscapingWriter w : ws) {
+          w.write(value);
+        }
       }
       off = close + 2;
     }
     if (off != end) {
-      hardEw.writeSafe(tmpl.substring(off));
-      softEw.writeSafe(tmpl.substring(off));
+      for (HTMLEscapingWriter w : ws) {
+        w.writeSafe(tmpl.substring(off));
+      }
     }
-    assertEquals(msg + ":hard", wantHard, hardBuf.toString());
-    assertEquals(msg + ":soft", wantSoft, softBuf.toString());
+
+    assertFalse(ws[0].isSoft());
+    assertEquals(msg + ":hard", wantHard, bufs[0].toString());
+    assertTrue(ws[1].isSoft());
+    assertEquals(msg + ":soft", wantSoft, bufs[1].toString());
+    assertFalse(ws[2].isSoft());
+    assertEquals(msg + ":hard", wantHard, bufs[2].toString());
+    assertTrue(ws[3].isSoft());
+    assertEquals(msg + ":soft", wantSoft, bufs[3].toString());
   }
 
   public final void testSafeWriter() throws Exception {
