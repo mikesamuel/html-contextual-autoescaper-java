@@ -45,7 +45,16 @@ public class HTMLEscapingWriter {
   private Writer htmlEscapingWriterDqOk, htmlEscapingWriterSqOk;
   /** As defined in {@link Context} */
   private int context;
-  private ReplacementTable rtable;
+  /**
+   * When processing safe attribute content, we unescape the content so that
+   * we can have one state machine that recognizes delimiters in both
+   * {@code <script>"quoted string"</script>} and in
+   * {@code <a href="&quot;quoted string&quot;">}.
+   * This table is used to reverse this unescaping before content is written
+   * to out.
+   * If {@code null}, no transformation is done.
+   */
+  private @Nullable ReplacementTable rtable;
   /**
    * HACK: When stripping tags from trusted HTML content that is interpolated
    * into an attribute value, we rerun the HTML scanner, so that we can
@@ -468,15 +477,24 @@ public class HTMLEscapingWriter {
     }
   }
 
+  /**
+   * stripTags takes a snippet of HTML and writes to out only the text content.
+   * For example, {@code "<b>&iexcl;Hi!</b> <script>...</script>"} &rarr;
+   * {@code "&iexcl;Hi! "}.
+   */
   @VisibleForTesting
-  void stripTags(String s, int delim)
-      throws IOException, TemplateException {
+  void stripTags(String s, int delim) throws IOException, TemplateException {
+    // Strip tags involves parsing HTML and writing to the same output as safe
+    // content, so we reuse the context state machine.
+    // First, store the current safe content parser state.
     ReplacementTable ortable = rtable;
     ReplacementTable normtable = (delim == Context.Delim.SingleQuote)
         ? NORM_HTML_DQ_OK : NORM_HTML_SQ_OK;
     Writer oout = this.out;
     int ocontext = this.context;
     this.context = Context.TEXT;
+    // This flag is used to avoid processing of unnecessary content such as
+    // JS and CSS in raw text nodes and attributes.
     this.isStrippingTags = true;
 
     try {
@@ -505,6 +523,7 @@ public class HTMLEscapingWriter {
         }
       }
     } finally {
+      // Restore safe content parser state stored above.
       this.rtable = ortable;
       this.out = oout;
       this.context = ocontext;
@@ -652,6 +671,11 @@ public class HTMLEscapingWriter {
     return i;
   }
 
+  /**
+   * Mapping from attribure types to the start states.
+   * For example, the value of the {@code style="..."} attribute starts in
+   * {@link Context.State#CSS state CSS}.
+   */
   private static final int[] ATTR_START_STATES
     = new int[(Context.Attr.MASK >> Context.Attr.SHIFT) + 1];
   static {
@@ -665,6 +689,11 @@ public class HTMLEscapingWriter {
        = Context.State.URL;
   }
 
+  /**
+   * Mapping from attribure types to the start states.
+   * For example, the value of the {@code style="..."} attribute starts in
+   * {@link Context.State#CSS state CSS}.
+   */
   private static final int attrStartState(int attr) {
     return ATTR_START_STATES[attr >> Context.Attr.SHIFT];
   }
@@ -715,6 +744,15 @@ public class HTMLEscapingWriter {
     return end;
   }
 
+  /**
+   * Looks for special tag body ends.
+   * The content of {@code <script>...</script>} is not regular HTML content.
+   * Instead it is raw textual content that ends when a {@code </script} is
+   * seen.  This method finds that end tag.
+   * @return the index of the first end tag corresponding to
+   *   {@link Context.Element element(context)} in s between off and end
+   *   or -1 if not found.
+   */
   private int findSpecialTagEnd(String s, int off, int end) {
     int el = element(context);
     if (el != Context.Element.None) {
@@ -993,14 +1031,14 @@ public class HTMLEscapingWriter {
         case '(':
           // Look for url to the left.
           int p = i;
-          while (p > off && isCSSSpace(s.charAt(p-1))) { --p; }
+          while (p > off && CSS.isCSSSpace(s.charAt(p-1))) { --p; }
           if (p - 3 >= off) {
             char c0 = s.charAt(p-3), c1 = s.charAt(p-2), c2 = s.charAt(p-1);
             if ((c0 == 'u' || c0 == 'U')
                 && (c1 == 'r' || c1 == 'R')
                 && (c2 == 'l' || c2 == 'L')) {
               int j = i+1;
-              while (j < end && isCSSSpace(s.charAt(j))) { ++j; }
+              while (j < end && CSS.isCSSSpace(s.charAt(j))) { ++j; }
               if (j < end && s.charAt(j) == '"') {
                 context = state(context, Context.State.CSSDqURL);
                 ++j;
@@ -1062,7 +1100,7 @@ public class HTMLEscapingWriter {
           // Unquoted URLs end with a newline or close parenthesis.
           // The below includes the wc (whitespace character) and nl.
           while (i < end && s.charAt(i) != '\\'
-                 && !isCSSSpace(s.charAt(i)) && s.charAt(i) != ')') {
+                 && !CSS.isCSSSpace(s.charAt(i)) && s.charAt(i) != ')') {
             ++i;
           }
           break;
@@ -1118,6 +1156,9 @@ public class HTMLEscapingWriter {
     return end;
   }
 
+  /**
+   * Write s[off:end] to the underlying buffer with any needed transformations.
+   */
   private void emit(String s, int off, int end) throws IOException {
     if (rtable != null) {
       rtable.escapeOnto(s, off, end, out);
@@ -1137,8 +1178,8 @@ public class HTMLEscapingWriter {
   }
 
   /**
-   * eatTagName returns the largest j such that s[i:j] is a tag name and the
-   * tag type.
+   * eatTagName returns the largest j such that s[i:j] is a tag name and
+   * j <= end.
    */
   private static int eatTagName(String s, int i, int end) {
     if (i == end || !asciiAlpha(s.charAt(i))) {
@@ -1188,19 +1229,19 @@ public class HTMLEscapingWriter {
     return true;
   }
 
-  private static boolean isCSSSpace(char ch) {
-    switch (ch) {
-      case '\t': case '\n': case '\f': case '\r': case ' ': return true;
-      default: return false;
-    }
-  }
-
+  /**
+   * @param pos the index of the problem in s.
+   */
   private TemplateException makeTemplateException(
       String s, int off, int pos, int end, String msg) {
     String str = s.substring(off, pos) + "^" + s.substring(pos, end);
     return new TemplateException(msg + str);
   }
 
+  /**
+   * Updates context with the JS slash context based on a run of JS tokens in
+   * s[off:end].
+   */
   private void updateJSCtx(String s, int off, int end) {
     context = jsCtx(context, JS.nextJSCtx(s, off, end, jsCtx(context)));
   }
@@ -1262,17 +1303,29 @@ public class HTMLEscapingWriter {
     }
   }
 
+  /**
+   * HTML escaping table that allows single quotes for use in double-quote
+   * delimited attribute values.
+   */
   static final ReplacementTable HTML_SQ_OK
       = new ReplacementTable(HTML.REPLACEMENT_TABLE).add('\'', null);
+  /**
+   * HTML escaping table that allows double quotes for use in single-quote
+   * delimited attribute values.
+   */
   static final ReplacementTable HTML_DQ_OK
       = new ReplacementTable(HTML.REPLACEMENT_TABLE).add('"', null);
+  /** HTML escaping table that does not muck with existing entities. */
   static final ReplacementTable NORM_HTML
       = new ReplacementTable(HTML.REPLACEMENT_TABLE).add('&', null);
+  /** Like {@link #HTML_SQ_OK} but does not encode {@code '&'}. */
   static final ReplacementTable NORM_HTML_SQ_OK
       = new ReplacementTable(HTML_SQ_OK).add('&', null);
+  /** Like {@link #HTML_DQ_OK} but does not encode {@code '&'}. */
   static final ReplacementTable NORM_HTML_DQ_OK
       = new ReplacementTable(HTML_DQ_OK).add('&', null);
 
+  /** Discards all input. */
   private static final Writer DEV_NULL = new Writer()  {
     @Override public void close() throws IOException { /* no-op */ }
     @Override public void flush() throws IOException { /* no-op */ }

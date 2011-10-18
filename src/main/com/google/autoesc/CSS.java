@@ -120,7 +120,8 @@ class CSS {
     return off;
   }
 
-  private static boolean isCSSSpace(int cp) {
+  /** True if cp is in the CSS3 wc production. */
+  static boolean isCSSSpace(int cp) {
     switch (cp) {
       case '\t': case '\n': case '\f': case '\r': case ' ': return true;
     }
