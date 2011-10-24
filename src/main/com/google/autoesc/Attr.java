@@ -194,6 +194,6 @@ class Attr {
         || name.contains("url")) {
       return ContentType.URL;
     }
-    return ContentType.Plain;
+    return ContentType.Unsafe;
   }
 }

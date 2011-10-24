@@ -53,7 +53,7 @@ public class HTMLEscapingWriterTest extends TestCase {
         );
     assertWritten(
         "<a",
-        "Tag"
+        "TagName"
         );
     assertWritten(
         "<a ",
@@ -412,8 +412,16 @@ public class HTMLEscapingWriterTest extends TestCase {
         ""
         );
     assertWritten(
+        "<h",
+        "TagName"
+        );
+    assertWritten(
+        "</h",
+        "TagName"
+        );
+    assertWritten(
         "<script",
-        "Tag Script"
+        "TagName Script"
         );
     assertWritten(
         "<script ",
@@ -540,7 +548,7 @@ public class HTMLEscapingWriterTest extends TestCase {
         );
     assertWritten(
         "<svg:font-face",
-        "Tag"
+        "TagName"
         );
     assertWritten(
         "<svg:a svg:onclick=\"",
@@ -1157,35 +1165,41 @@ public class HTMLEscapingWriterTest extends TestCase {
         );
     assertTemplateOutput(
             "bad dynamic attribute name 1",
-            // Allow checked, selected, disabled, but not JS or
-            // CSS attributes.
+            // The value is interpreted consistent with the attribute name.
             "<input {{\"onchange\"}}=\"{{\"doEvil()\"}}\">",
-            "<input ZautoescZ=\"doEvil()\">"
+            "<input onchange=\"'doEvil()'\">"
         );
     assertTemplateOutput(
             "bad dynamic attribute name 2",
-            "<div {{\"sTyle\"}}=\"{{\"color: expression(alert(1337))\"}}\">",
-            "<div ZautoescZ=\"color: expression(alert(1337))\">"
-        );
-    assertTemplateOutput(
-            "bad dynamic attribute name 3",
-            // Allow title or alt, but not a URL.
-            "<img {{\"src\"}}=\"{{\"javascript:doEvil()\"}}\">",
-            "<img ZautoescZ=\"javascript:doEvil()\">"
-        );
-    assertTemplateOutput(
-            "bad dynamic attribute name 4",
             // Structure preservation requires values to associate
             // with a consistent attribute.
             "<input checked {{\"\"}}=\"Whose value am I?\">",
             "<input checked ZautoescZ=\"Whose value am I?\">"
         );
     assertTemplateOutput(
-            "bad dynamic attribute name 5",
+            "bad dynamic attribute name 3",
             // Structure preservation requires values to associate
             // with a consistent attribute.
             "<input checked {{\" \"}}=\"Whose value am I?\">",
             "<input checked ZautoescZ=\"Whose value am I?\">"
+        );
+    assertTemplateOutput(
+            "bad dynamic attribute name / value pair 1",
+            "<div {{\"sTyle\"}}=\"{{\"color: expression(alert(1337))\"}}\">",
+            "<div style=\"ZautoescZ\">"
+        );
+    assertTemplateOutput(
+            "bad dynamic attribute name / value pair 2",
+            // Allow title or alt, but not a URL.
+            "<img {{\"src\"}}=\"{{\"javascript:doEvil()\"}}\">",
+            "<img src=\"#ZautoescZ\">"
+        );
+    assertTemplateOutput(
+            "unrecognized dynamic attribute name",
+            // Allow checked, selected, disabled, but not JS or
+            // CSS attributes.
+            "<div {{\"bogus\"}}=\"{{\"doEvil()\"}}\">",
+            "<div ZautoescZ=\"doEvil()\">"
         );
     assertTemplateOutput(
             "dynamic element name",

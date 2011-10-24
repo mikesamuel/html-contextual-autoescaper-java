@@ -305,9 +305,9 @@ public class HTMLEscapingWriter {
           }
         }
         break;
-      case Context.State.AttrName: case Context.State.Tag:
-        context = state(context, Context.State.AttrName);
-        HTML.filterNameOnto(o, out);
+      case Context.State.AttrName: case Context.State.TagName:
+        // State Tag is included here by nudge.
+        context = HTML.filterNameOnto(o, out, context);
         break;
       default:
         if (Context.State.isComment(context)) {
@@ -437,6 +437,7 @@ public class HTMLEscapingWriter {
       throws IOException, TemplateException {
     switch (state(context)) {
       case Context.State.Text:        return tText(s, off, end);
+      case Context.State.TagName:     return tTagName(s, off, end);
       case Context.State.Tag:         return tTag(s, off, end);
       case Context.State.AttrName:    return tAttrName(s, off, end);
       case Context.State.AfterName:   return tAfterName(s, off, end);
@@ -498,7 +499,7 @@ public class HTMLEscapingWriter {
         int el = isEndTag
           ? Context.Element.None : classifyTagName(s, tagStart, tagEnd);
         // We've found an HTML tag.
-        context = element(state(context, Context.State.Tag), el);
+        context = element(state(context, Context.State.TagName), el);
         emit(s, off, isStrippingTags ? lt : tagEnd);
         return tagEnd;
       }
@@ -587,6 +588,19 @@ public class HTMLEscapingWriter {
         break;
     }
     return Context.Element.None;
+  }
+
+  /** tTagName is the context transition function for the tag name state. */
+  int tTagName(String s, int off, int end)
+      throws IOException, TemplateException {
+    int i = eatTagName(s, off, end);
+    if (i == end) {
+      emit(s, off, end);
+      return end;
+    }
+    emit(s, off, i);
+    context = Context.state(context, Context.State.Tag);
+    return i;
   }
 
   /** tTag is the context transition function for the tag state. */
@@ -1368,7 +1382,7 @@ public class HTMLEscapingWriter {
     @Override public void write(int c) { /* no-op */ }
   };
 
-  // Privileged accessors for memoizing writer.
+  // Privileged accessors for the memoizing writer.
   void setContext(int context) { this.context = context; }
   Writer getWriter() { return this.out; }
   void replaceWriter(Writer out) { this.out = out; }

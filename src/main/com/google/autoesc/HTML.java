@@ -174,13 +174,15 @@ class HTML {
   /**
    * filterNameOnto accepts valid parts of an HTML attribute or tag name or
    * a known-safe HTML attribute.
+   * @return context
    */
-  static void filterNameOnto(@Nullable Object o, Writer out)
+  static int filterNameOnto(@Nullable Object o, Writer out, int context)
       throws IOException {
     String safe = ContentType.HTMLAttr.derefSafeContent(o);
     if (safe != null) {
+      out.write(' ');
       out.write(safe);
-      return;
+      return context;
     }
     String s = ReplacementTable.toString(o);
     if ("".equals(s)) {
@@ -190,23 +192,33 @@ class HTML {
       // checked, but otherwise {{V}} is the value of the attribute
       // named {{K}}.
       out.write("ZautoescZ");
-      return;
+      return context;
     }
     s = s.toLowerCase(Locale.ENGLISH);
-    if (Attr.attrType(s) != ContentType.Plain) {
-      // TODO: Split attr and element name part filters so we can whitelist
-      // attributes.
-      out.write("ZautoescZ");
-      return;
-    }
+    ContentType type = Context.state(context) != Context.State.TagName
+        // JS if we saw the "on" prefix already.
+        ? (Context.attr(context) == Context.Attr.Script ? ContentType.JS
+           : Attr.attrType(s))
+        : ContentType.Plain;
     for (int i = 0, n = s.length(); i < n; ++i) {
       char ch = s.charAt(i);
       if (!(('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'z'))) {
         out.write("ZautoescZ");
-        return;
+        return context;
       }
     }
+    int attr;
+    switch (type) {
+      case Plain: attr = Context.Attr.None; break;
+      case CSS: attr = Context.Attr.Style; break;
+      case JS: attr = Context.Attr.Script; break;
+      case URL: attr = Context.Attr.URL; break;
+      default:
+        out.write("ZautoescZ");
+        return context;
+    }
     out.write(s);
+    return Context.attr(context, attr);
   }
 
   private static final Map<String, String> ENTITIES

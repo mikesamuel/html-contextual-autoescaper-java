@@ -39,6 +39,7 @@ final class Context {
     StringBuilder sb = new StringBuilder();
     switch (state(ctx)) {
       case State.Text: sb.append("Text"); break;
+      case State.TagName: sb.append("TagName"); break;
       case State.Tag: sb.append("Tag"); break;
       case State.AttrName: sb.append("AttrName"); break;
       case State.AfterName: sb.append("AfterName"); break;
@@ -133,99 +134,103 @@ final class Context {
        */
       Text = 0 << SHIFT,
       /**
+       * TagName occurs inside a tag name.
+       */
+      TagName = 1 << SHIFT,
+      /**
        * Tag occurs before an HTML attribute or the end of a tag.
        */
-      Tag = 1 << SHIFT,
+      Tag = 2 << SHIFT,
       /**
        * AttrName occurs inside an attribute name.
        * It occurs between the ^'s in ` ^name^ = value`.
        */
-      AttrName = 2 << SHIFT,
+      AttrName = 3 << SHIFT,
       /**
        * AfterName occurs after an attr name has ended but before any
        * equals sign. It occurs between the ^'s in ` name^ ^= value`.
        */
-      AfterName = 3 << SHIFT,
+      AfterName = 4 << SHIFT,
       /**
        * BeforeValue occurs after the equals sign but before the value.
        * It occurs between the ^'s in ` name =^ ^value`.
        */
-      BeforeValue = 4 << SHIFT,
+      BeforeValue = 5 << SHIFT,
       /**
        * HTMLCmt occurs inside an {@code <!-- HTML comment -->}.
        */
-      HTMLCmt = 5 << SHIFT,
+      HTMLCmt = 6 << SHIFT,
       /**
        * RCDATA occurs inside an RCDATA element ({@code<textarea>} or
        * {@code <title>}) as described at
        * http://dev.w3.org/html5/spec/syntax.html#elements-0
        */
-      RCDATA = 6 << SHIFT,
+      RCDATA = 7 << SHIFT,
       /**
        * Attr occurs inside an HTML attribute whose content is text.
        */
-      Attr = 7 << SHIFT,
+      Attr = 8 << SHIFT,
       /**
        * URL occurs inside an HTML attribute whose content is a URL.
        */
-      URL = 8 << SHIFT,
+      URL = 9 << SHIFT,
       /**
        * JS occurs inside an event handler or script element.
        */
-      JS = 9 << SHIFT,
+      JS = 10 << SHIFT,
       /**
        * JSDqStr occurs inside a JavaScript double quoted string.
        */
-      JSDqStr = 10 << SHIFT,
+      JSDqStr = 11 << SHIFT,
       /**
        * JSSqStr occurs inside a JavaScript single quoted string.
        */
-      JSSqStr = 11 << SHIFT,
+      JSSqStr = 12 << SHIFT,
       /**
        * JSRegexp occurs inside a JavaScript regexp literal.
        */
-      JSRegexp = 12 << SHIFT,
+      JSRegexp = 13 << SHIFT,
       /**
        * JSBlockCmt occurs inside a JavaScript
        * {@code /* block comment *}{@code /}.
        */
-      JSBlockCmt = 13 << SHIFT,
+      JSBlockCmt = 14 << SHIFT,
       /**
        * JSLineCmt occurs inside a JavaScript {@code // line comment}.
        */
-      JSLineCmt = 14 << SHIFT,
+      JSLineCmt = 15 << SHIFT,
       /**
        * CSS occurs inside a {@code <style>} element or style attribute.
        */
-      CSS = 15 << SHIFT,
+      CSS = 16 << SHIFT,
       /**
        * CSSDqStr occurs inside a CSS double quoted string.
        */
-      CSSDqStr = 16 << SHIFT,
+      CSSDqStr = 17 << SHIFT,
       /**
        * CSSSqStr occurs inside a CSS single quoted string.
        */
-      CSSSqStr = 17 << SHIFT,
+      CSSSqStr = 18 << SHIFT,
       /**
        * CSSDqURL occurs inside a CSS double quoted {@code url("...")}.
        */
-      CSSDqURL = 18 << SHIFT,
+      CSSDqURL = 19 << SHIFT,
       /**
        * CSSSqURL occurs inside a CSS single quoted {@code url('...')}.
        */
-      CSSSqURL = 19 << SHIFT,
+      CSSSqURL = 20 << SHIFT,
       /**
        * CSSURL occurs inside a CSS unquoted {@code url(...)}.
        */
-      CSSURL = 20 << SHIFT,
+      CSSURL = 21 << SHIFT,
       /**
        * CSSBlockCmt occurs inside a CSS {@code /* block comment *}{@code /}.
        */
-      CSSBlockCmt = 21 << SHIFT,
+      CSSBlockCmt = 22 << SHIFT,
       /**
        * CSSLineCmt occurs inside a CSS {@code // line comment}.
        */
-      CSSLineCmt = 22 << SHIFT;
+      CSSLineCmt = 23 << SHIFT;
 
     /**
      * isComment is true for any state that contains content meant for template
