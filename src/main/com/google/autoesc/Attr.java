@@ -41,6 +41,7 @@ class Attr {
     .put("alt",             ContentType.Plain)
     .put("archive",         ContentType.URL)
     .put("async",           ContentType.Unsafe)
+    .put("attributename",   ContentType.Unsafe) // From <svg:set attributeName>
     .put("autocomplete",    ContentType.Plain)
     .put("autofocus",       ContentType.Plain)
     .put("autoplay",        ContentType.Plain)

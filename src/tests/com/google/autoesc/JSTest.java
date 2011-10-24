@@ -298,7 +298,7 @@ public final class JSTest extends TestCase {
         "0123456789:;\\x3c=\\x3e?" +
         "@ABCDEFGHIJKLMNO" +
         "PQRSTUVWXYZ[\\\\]^_" +
-        "`abcdefghijklmno" +
+        "\\x60abcdefghijklmno" +
         "pqrstuvwxyz{|}~\u007f" +
         "\u00A0\u0100\\u2028\\u2029\ufeff\ufdec\ud834\udd13",
         jsStr(input));
@@ -310,7 +310,7 @@ public final class JSTest extends TestCase {
         "0123456789:;\\x3c=\\x3e\\?" +
         "@ABCDEFGHIJKLMNO" +
         "PQRSTUVWXYZ\\[\\\\\\]\\^_" +
-        "`abcdefghijklmno" +
+        "\\x60abcdefghijklmno" +
         "pqrstuvwxyz\\{\\|\\}~\u007f" +
         "\u00A0\u0100\\u2028\\u2029\ufeff\ufdec\ud834\udd13",
         jsRegexp(input));

@@ -133,7 +133,7 @@ public class CSSTest extends TestCase {
         "0123456789\\3a\\3b\\3c=\\3e?" +
         "@ABCDEFGHIJKLMNO" +
         "PQRSTUVWXYZ[\\\\]^_" +
-        "`abcdefghijklmno" +
+        "\\60 abcdefghijklmno" +
         "pqrstuvwxyz\\7b|\\7d~\u007f" +
         "\u00A0\u0100\u2028\u2029\ufeff\ud834\udd13");
 

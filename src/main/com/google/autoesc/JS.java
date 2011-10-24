@@ -171,6 +171,7 @@ class JS {
       .add('<', "\\x3c")
       .add('>', "\\x3e")
       .add('\\', "\\\\")
+      .add('`', "\\x60")
       .replaceNonAscii(new int[] { 0x2028, 0x2029 },
                        new String[] { "\\u2028", "\\u2029" });
   /**

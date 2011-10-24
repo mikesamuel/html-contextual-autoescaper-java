@@ -136,8 +136,9 @@ class CSS {
             int cp, String repl, int lookahead, Writer out)
             throws IOException {
           out.write(repl);
-          if (cp != '\\' && (lookahead == -1 || isHex((char) lookahead)
-                             || isCSSSpace((char) lookahead))) {
+          if (isHex(repl.charAt(repl.length()-1)) &&
+              (lookahead == -1 || isHex((char) lookahead)
+               || isCSSSpace((char) lookahead))) {
             // Separate the hex-escape from any following hex-digits.
             out.write(' ');
           }
@@ -162,6 +163,7 @@ class CSS {
       .add('<', "\\3c")
       .add('>', "\\3e")
       .add('\\', "\\\\")
+      .add('`', "\\60")
       .add('{', "\\7b")
       .add('}', "\\7d");
 
