@@ -11,6 +11,9 @@ clean:
 out:
 	@mkdir -p out
 
+# Packages content in out/war so that the appengine tool can be used thus:
+#    PATH_TO_APPENGINE_SDK/bin/dev_appserver.sh out/war
+#    PATH_TO_APPENGINE_SDK/appcfg.sh update out/war
 war: out/war.tstamp
 
 out/war.tstamp: out/war/WEB-INF classes
