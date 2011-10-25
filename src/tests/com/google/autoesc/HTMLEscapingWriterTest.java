@@ -1167,7 +1167,7 @@ public class HTMLEscapingWriterTest extends TestCase {
             "bad dynamic attribute name 1",
             // The value is interpreted consistent with the attribute name.
             "<input {{\"onchange\"}}=\"{{\"doEvil()\"}}\">",
-            "<input onchange=\"'doEvil()'\">"
+            "<input onchange=\"'doEvil\\(\\)'\">"
         );
     assertTemplateOutput(
             "bad dynamic attribute name 2",

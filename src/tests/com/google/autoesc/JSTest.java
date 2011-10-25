@@ -229,7 +229,7 @@ public final class JSTest extends TestCase {
     // From http://code.google.com/p/doctype/wiki/ArticleUtf7
     assertEscapedStrChars(
         "+ADw-script+AD4-alert(1)+ADw-/script+AD4-",
-        "\\x2bADw-script\\x2bAD4-alert(1)\\x2bADw-\\/script\\x2bAD4-");
+        "\\x2bADw-script\\x2bAD4-alert\\(1\\)\\x2bADw-\\/script\\x2bAD4-");
     // Invalid UTF-8 sequence
     assertEscapedStrChars("foo\u00A0bar", "foo\u00A0bar");
   }
@@ -294,7 +294,7 @@ public final class JSTest extends TestCase {
         "jsStrEscaper",
         "\\0\1\2\3\4\5\6\7\10\\t\\n\\x0b\\f\\r\16\17" +
         "\20\21\22\23\24\25\26\27\30\31\32\33\34\35\36\37" +
-        " !\\x22#$%\\x26\\x27()*\\x2b,-.\\/" +
+        " !\\x22#$%\\x26\\x27\\(\\)*\\x2b,-.\\/" +
         "0123456789:;\\x3c=\\x3e?" +
         "@ABCDEFGHIJKLMNO" +
         "PQRSTUVWXYZ[\\\\]^_" +

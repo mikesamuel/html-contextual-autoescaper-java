@@ -156,29 +156,40 @@ class JS {
   static final ReplacementTable STR_REPLACEMENT_TABLE
       = new ReplacementTable()
       .add((char) 0, "\\0")
+      // Encode HTML specials as hex so the output can be embedded
+      // in HTML attributes without further encoding.
+      .add('`', "\\x60")
+      .add('"', "\\x22")
+      .add('&', "\\x26")
+      .add('\'', "\\x27")
+      // JS strings cannot contain embedded newlines.  Escape all space chars.
+      // U+2028 and U+2029 handled below.
       .add('\t', "\\t")
       .add('\n', "\\n")
       .add('\u000b', "\\x0b") // "\v" == "v" on IE 6.
       .add('\f', "\\f")
       .add('\r', "\\r")
-      // Encode HTML specials as hex so the output can be embedded
-      // in HTML attributes without further encoding.
-      .add('"', "\\x22")
-      .add('&', "\\x26")
-      .add('\'', "\\x27")
+      // Prevent function calls even if they escape, and handle capturing
+      // groups when inherited by regex below.
+      .add('(', "\\(")
+      .add(')', "\\)")
+      // UTF-7 attack vector
       .add('+', "\\x2b")
+      // Prevent embedded "</script"
       .add('/', "\\/")
+      // Prevent embedded <!-- and -->
       .add('<', "\\x3c")
       .add('>', "\\x3e")
+      // Correctness.
       .add('\\', "\\\\")
-      .add('`', "\\x60")
+      // JavaScript specific newline chars.
       .replaceNonAscii(new int[] { 0x2028, 0x2029 },
                        new String[] { "\\u2028", "\\u2029" });
   /**
    * STR_NORM_REPLACEMENT_TABLE is like STR_REPLACEMENT_TABLE but does not
    * overencode existing escapes since this table has no entry for "\\".
    */
-  private static final ReplacementTable STR_NORM_REPLACEMENT_TABLE
+  static final ReplacementTable STR_NORM_REPLACEMENT_TABLE
       = new ReplacementTable(STR_REPLACEMENT_TABLE)
       .add('\\', null);
 
@@ -193,19 +204,17 @@ class JS {
           out.write("(?:)");
         }
       }
+      .add('{', "\\{")
+      .add('|', "\\|")
+      .add('}', "\\}")
       .add('$', "\\$")
-      .add('(', "\\(")
-      .add(')', "\\)")
       .add('*', "\\*")
       .add('-', "\\-")
       .add('.', "\\.")
       .add('?', "\\?")
       .add('[', "\\[")
       .add(']', "\\]")
-      .add('^', "\\^")
-      .add('{', "\\{")
-      .add('|', "\\|")
-      .add('}', "\\}");
+      .add('^', "\\^");
 
   static void escapeStrOnto(@Nullable Object o, Writer out) throws IOException {
     String safe = ContentType.JSStr.derefSafeContent(o);
@@ -291,7 +300,36 @@ class JSValueEscaper {
       // merge into other tokens.
       // Surrounding with parentheses might introduce call operators.
       out.write(protectBoundaries ? " null " : "null");
-    } else if (o instanceof JSONMarshaler) {
+      return;
+    }
+    if (o instanceof SafeContent) {
+      SafeContent ct = (SafeContent) o;
+      ContentType t = ct.getContentType();
+      switch (t) {
+        case JS:
+          if (protectBoundaries) { out.write(' '); }
+          out.write(ct.toString());
+          if (protectBoundaries) { out.write(' '); }
+          return;
+        case JSStr:
+          String s = ct.toString();
+          int trailingSlashes = 0;
+          for (int i = s.length(); --i >= 0; ++trailingSlashes) {
+            if (s.charAt(i) != '\\') { break; }
+          }
+          out.write('\'');
+          JS.STR_NORM_REPLACEMENT_TABLE.escapeOnto(s, out);
+          if ((trailingSlashes & 1) != 0) {
+            out.write('\\');
+          }
+          // If s ends with an incomplete escape sequence, complete it.
+          out.write('\'');
+          return;
+        default:
+          // Fall through to cases below.
+      }
+    }
+    if (o instanceof JSONMarshaler) {
       String json = sanityCheckJSON(((JSONMarshaler) o).toJSON());
       char ch0 = json.charAt(0);  // sanityCheckJSON does not allow empty.
       if (protectBoundaries && JS.isJSIdentPart(ch0)) { out.write(' '); }

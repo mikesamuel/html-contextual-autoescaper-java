@@ -32,7 +32,8 @@
  * results in the output
  * <blockquote>
  * {@code <b>I &lt;3 Ponies!</b>}
- * {@code <button onclick="foo({&#34;foo&#34;:&#34;\x22bar\x22&#34;:42})">}
+ * <code>&lt;button
+ *  onclick="foo({&#34;foo&#34;:&#34;\x22bar\x22&#34;:42})"&gt;</code>
  * </blockquote>
  * The safe parts are treated as literal chunks of HTML/CSS/JS, and the unsafe
  * parts are escaped to preserve security and least-surprise.

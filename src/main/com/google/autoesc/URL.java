@@ -29,11 +29,12 @@ class URL {
    * produce a valid hierarchical or opaque URL part.
    */
   static void escapeOnto(boolean norm, Object o, Writer out)
-    throws IOException {
+      throws IOException {
     String s;
     String safe = ContentType.URL.derefSafeContent(o);
     if (safe != null) {
       s = safe;
+      norm = true;
     } else {
       s = ReplacementTable.toString(o);
     }

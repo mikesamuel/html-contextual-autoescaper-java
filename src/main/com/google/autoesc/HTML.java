@@ -134,6 +134,11 @@ class HTML {
       = new ReplacementTable(REPLACEMENT_TABLE)
       .add('&', null);
 
+  private static final ReplacementTable NORM_BASIC_REPLACEMENT_TABLE
+      = new ReplacementTable(NORM_REPLACEMENT_TABLE)
+      .add('\'', null)
+      .add('"', null);
+
   /** escapeOnto escapes for inclusion in HTML text. */
   static void escapeOnto(@Nullable Object o, Writer out) throws IOException {
     String safe = ContentType.HTML.derefSafeContent(o);
@@ -180,8 +185,8 @@ class HTML {
       throws IOException {
     String safe = ContentType.HTMLAttr.derefSafeContent(o);
     if (safe != null) {
-      out.write(' ');
-      out.write(safe);
+      if (Context.state(context) == Context.State.TagName) { out.write(' '); }
+      NORM_BASIC_REPLACEMENT_TABLE.escapeOnto(safe, out);
       return context;
     }
     String s = ReplacementTable.toString(o);
