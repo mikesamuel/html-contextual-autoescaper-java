@@ -17,9 +17,12 @@ package com.google.autoesc;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
-import com.google.common.collect.Maps;
+import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 
 /**
  * An {@link HTMLEscapingWriter} that is more efficient at handling repeated
@@ -28,8 +31,23 @@ import com.google.common.collect.Maps;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
-  // TODO: limit cache size
-  private final Map<MemoKey, MemoValue> memoTable = Maps.newHashMap();
+  private static final Cache<MemoKey, MemoValue> MEMO_TABLE
+      = CacheBuilder.newBuilder()
+      .concurrencyLevel(2)
+      .maximumSize(1000)
+      .build(new CacheLoader<MemoKey, MemoValue>() {
+        @Override
+        public MemoValue load(MemoKey key)
+            throws IOException, TemplateException {
+          StringWriter normalizedSafeContent = new StringWriter(
+              key.safeContent.length() + 16);
+          HTMLEscapingWriter w = new HTMLEscapingWriter(normalizedSafeContent);
+          w.setContext(key.startContext);
+          w.writeSafe(key.safeContent);
+          return new MemoValue(
+              w.getContext(), normalizedSafeContent.toString());
+        }
+      });
 
   MemoizingHTMLEscapingWriter(Writer out) {
     super(out);
@@ -71,18 +89,14 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
   public void writeSafe(String safeContent)
       throws IOException, TemplateException {
     MemoKey key = new MemoKey(getContext(), safeContent);
-    MemoValue value = memoTable.get(key);
-    if (value == null) {
-      StringWriter normalizedSafeContent = new StringWriter(
-          safeContent.length() + 16);
-      Writer oout = getWriter();
-      replaceWriter(normalizedSafeContent);
-      super.writeSafe(safeContent);
-      replaceWriter(oout);
-      value = new MemoValue(getContext(), normalizedSafeContent.toString());
-      memoTable.put(key, value);
+    try {
+      MemoValue value = MEMO_TABLE.get(key);
+      getWriter().write(value.normalizedSafeContent);
+      setContext(value.endContext);
+    } catch (ExecutionException ex) {
+      Throwables.propagateIfPossible(
+          ex, IOException.class, TemplateException.class);
+      Throwables.propagate(ex);
     }
-    getWriter().write(value.normalizedSafeContent);
-    setContext(value.endContext);
   }
 }

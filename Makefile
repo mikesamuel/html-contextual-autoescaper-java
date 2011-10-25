@@ -1,15 +1,26 @@
-CLASSPATH=lib/guava-libraries/guava.jar:lib/jsr305/jsr305.jar
+CLASSPATH=lib/guava-libraries/guava.jar:lib/jsr305/jsr305.jar:lib/jsdk2.1/servlet.jar
 TEST_CLASSPATH=$(CLASSPATH):lib/junit/junit.jar
 JAVAC_FLAGS=-source 1.5 -target 1.5 -Xlint
 
 
-default: javadoc runtests findbugs out/autoesc.jar
+default: javadoc runtests findbugs out/autoesc.jar war
 
 clean:
 	rm -rf out
 
 out:
 	@mkdir -p out
+
+war: out/war.tstamp
+
+out/war.tstamp: out/war/WEB-INF classes
+	@touch out/war.stamp
+	@mkdir -p out/war/WEB-INF/lib out/war/WEB-INF/classes
+	@cp -r out/com out/war/WEB-INF/classes/com
+	@cp $$(echo ${CLASSPATH} | tr ':' ' ') out/war/WEB-INF/lib
+out/war/WEB-INF: war/WEB-INF
+	@mkdir -p out/war
+	@rm -rf out/war/WEB-INF; cp -r war/WEB-INF out/war/WEB-INF
 
 classes: out/classes.tstamp
 out/classes.tstamp: out src/main/com/google/autoesc/*.java
