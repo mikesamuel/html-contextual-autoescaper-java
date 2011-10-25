@@ -20,21 +20,59 @@
  *   <li>{@link com.google.autoesc.HTMLEscapingWriter#writeSafe}</li>
  *   <li>{@link com.google.autoesc.HTMLEscapingWriter#write}</li>
  * </ul>
- * so that the sequence of calls
+ * A template like
  * <pre>
- *  w.writeSafe("&lt;b&gt;");
- *  w.write("I &lt;3 Ponies!");
- *  w.writeSafe("&lt;/b&gt;\n&lt;button onclick=foo(");
- *  w.writeObject(ImmutableMap.&lt;String, Object&gt;of(
- *      "foo", "bar", "\"baz\"", 42));
- *  w.writeSafe(")&gt;");
+ * &lt;div style="color: <b>&lt;%=$self.color%&gt;</b>"&gt;
+ *   &lt;a href="/<b>&lt;%=$self.color%&gt;</b>?q=<b>&lt;%=$self.world%&gt;</b>"
+ *    onclick="alert('<b>&lt;% helper($self) %&gt;</b>');return false"&gt;
+ *     <b>&lt;% helper($self) %&gt;</b>
+ *   &lt;/a&gt;
+ *   &lt;script&gt;(function () {  // Sleepy developers put sensitive info in comments.
+ *     var o = <b>&lt;%=$self&gt;</b>,
+ *         w = "<b>&lt;%=$self.world%&gt;</b>";
+ *   })();&lt;/script&gt;
+ * &lt;/div&gt;
+ *
+ * <b>&lt;% def helper($self) {
+ *   %&gt;</b>Hello, <b>&lt;%=$self.world%&gt;</b>
+ * <b>&lt;%}%&gt;</b>
  * </pre>
- * results in the output
- * <blockquote>
- * {@code <b>I &lt;3 Ponies!</b>}
- * <code>&lt;button
- *  onclick="foo({&#34;foo&#34;:&#34;\x22bar\x22&#34;:42})"&gt;</code>
- * </blockquote>
+ * might correspond to the sequence of calls
+ * <pre>
+ *  // Dummy input values.
+ *  Map $self = ImmutableMap.&lt;String, Object&gt;of(
+ *      "world", "&lt;Cincinatti&gt;", "color", "blue");
+ *  Object color = self.get("color"), world = self.get("world");
+ *  // Alternating safe and unsafe writes that implement the template.
+ *  w.writeSafe("&lt;div style=\"color: ");
+ *  w.write    (color);
+ *  w.writeSafe("\"&gt;\n&lt;a href=\"/");
+ *  w.write    (color);
+ *  w.writeSafe("?q=");
+ *  w.write    (world);
+ *  w.writeSafe("\"\n  onclick=\"alert('");
+ *  helper     (w, $self);
+ *  w.writeSafe("');return false\"&gt;\n    ");
+ *  helper     (w, $self);
+ *  w.writeSafe("\n  &lt;/a&gt;\n  &lt;script&gt;(function () {\n    var o = ");
+ *  w.write    ($self);
+ *  w.writeSafe(",\n        w = \"");
+ *  w.write    (world);
+ *  w.writeSafe("\";\n  })();&lt;/script&gt;\n&lt;/div&gt;");
+ * </pre>
+ * which result in the output
+ * <pre>
+ * &lt;div style="color: <b>blue</b>"&gt;
+ *   &lt;a href="/<b>blue</b>?q=<b>%3cCincinatti%3e</b>"
+ *    onclick="alert('Hello, <b>\x3cCincinatti\x3e</b>!');return false"&gt;
+ *     Hello, <b>&lt;Cincinatti&gt;</b>!
+ *   &lt;/a&gt;
+ *   &lt;script&gt;(function () {  
+ *     var o = <b>{"Color":"blue","World":"\u003cCincinatti\u003e"}</b>,
+ *         w = "<b>\x26lt;Cincinatti\x26gt;</b>";
+ *   })();&lt;/script&gt;
+ * &lt;/div&gt;
+ * </pre>
  * The safe parts are treated as literal chunks of HTML/CSS/JS, and the unsafe
  * parts are escaped to preserve security and least-surprise.
  *
