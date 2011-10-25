@@ -17,12 +17,14 @@ package com.google.autoesc;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
+import com.google.common.collect.Maps;
 
 /**
  * An {@link HTMLEscapingWriter} that is more efficient at handling repeated
@@ -31,11 +33,18 @@ import com.google.common.cache.CacheLoader;
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
-  private static final Cache<MemoKey, MemoValue> MEMO_TABLE
-      = CacheBuilder.newBuilder()
+  private static final boolean USE_GLOBAL_CACHE = false;
+
+  // TODO: profile the two cache implementations and decide which one stays.
+  private final Map<MemoKey, MemoValue> memoTable = USE_GLOBAL_CACHE
+      ? null : Maps.<MemoKey, MemoValue>newHashMap();
+  private static final Cache<MemoKey, MemoValue> MEMO_TABLE;
+  static {
+    MEMO_TABLE = USE_GLOBAL_CACHE ?
+      CacheBuilder.newBuilder()
       .concurrencyLevel(2)
       .maximumSize(1000)
-      .build(new CacheLoader<MemoKey, MemoValue>() {
+      .<MemoKey, MemoValue>build(new CacheLoader<MemoKey, MemoValue>() {
         @Override
         public MemoValue load(MemoKey key)
             throws IOException, TemplateException {
@@ -47,7 +56,9 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
           return new MemoValue(
               w.getContext(), normalizedSafeContent.toString());
         }
-      });
+      })
+      : null;
+  }
 
   MemoizingHTMLEscapingWriter(Writer out) {
     super(out);
@@ -89,14 +100,30 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
   public void writeSafe(String safeContent)
       throws IOException, TemplateException {
     MemoKey key = new MemoKey(getContext(), safeContent);
-    try {
-      MemoValue value = MEMO_TABLE.get(key);
+    if (USE_GLOBAL_CACHE) {
+      try {
+        MemoValue value = MEMO_TABLE.get(key);
+        getWriter().write(value.normalizedSafeContent);
+        setContext(value.endContext);
+      } catch (ExecutionException ex) {
+        Throwables.propagateIfPossible(
+             ex, IOException.class, TemplateException.class);
+        Throwables.propagate(ex);
+      }
+    } else {
+      MemoValue value = memoTable.get(key);
+      if (value == null) {
+        StringWriter normalizedSafeContent = new StringWriter(
+            safeContent.length() + 16);
+        Writer oout = getWriter();
+        replaceWriter(normalizedSafeContent);
+        super.writeSafe(safeContent);
+        replaceWriter(oout);
+        value = new MemoValue(getContext(), normalizedSafeContent.toString());
+        memoTable.put(key, value);
+      }
       getWriter().write(value.normalizedSafeContent);
       setContext(value.endContext);
-    } catch (ExecutionException ex) {
-      Throwables.propagateIfPossible(
-          ex, IOException.class, TemplateException.class);
-      Throwables.propagate(ex);
     }
   }
 }
