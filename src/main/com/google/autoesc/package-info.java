@@ -44,21 +44,21 @@
  *      "world", "&lt;Cincinatti&gt;", "color", "blue");
  *  Object color = self.get("color"), world = self.get("world");
  *  // Alternating safe and unsafe writes that implement the template.
- *  w.writeSafe("&lt;div style=\"color: ");
- *  w.write    (color);
- *  w.writeSafe("\"&gt;\n&lt;a href=\"/");
- *  w.write    (color);
- *  w.writeSafe("?q=");
- *  w.write    (world);
- *  w.writeSafe("\"\n  onclick=\"alert('");
- *  helper     (w, $self);
- *  w.writeSafe("');return false\"&gt;\n    ");
- *  helper     (w, $self);
- *  w.writeSafe("\n  &lt;/a&gt;\n  &lt;script&gt;(function () {\n    var o = ");
- *  w.write    ($self);
- *  w.writeSafe(",\n        w = \"");
- *  w.write    (world);
- *  w.writeSafe("\";\n  })();&lt;/script&gt;\n&lt;/div&gt;");
+ *  w.writeSafe(<u>"&lt;div style=\"color: "</u>);
+ *  w.write    (<b>color</b>);
+ *  w.writeSafe(<u>"\"&gt;\n&lt;a href=\"/"</u>);
+ *  w.write    (<b>color</b>);
+ *  w.writeSafe(<u>"?q="</u>);
+ *  w.write    (<b>world</b>);
+ *  w.writeSafe(<u>"\"\n  onclick=\"alert('"</u>);
+ *  helper     (<b>w, $self</b>);
+ *  w.writeSafe(<u>"');return false\"&gt;\n    "</u>);
+ *  helper     (<b>w, $self</b>);
+ *  w.writeSafe(<u>"\n  &lt;/a&gt;\n  &lt;script&gt;(function () {\n    var o = "</u>);
+ *  w.write    (<b>$self</b>);
+ *  w.writeSafe(<u>",\n        w = \""</u>);
+ *  w.write    (<b>world</b>);
+ *  w.writeSafe(<u>"\";\n  })();&lt;/script&gt;\n&lt;/div&gt;"</u>);
  * </pre>
  * which result in the output
  * <pre>
