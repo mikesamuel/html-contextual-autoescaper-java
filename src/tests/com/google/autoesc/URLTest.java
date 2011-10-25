@@ -103,4 +103,18 @@ public class URLTest extends TestCase {
       assertEquals(urlEscaped, buf.toString());
     }
   }
+
+  public final void testURLEncode() throws Exception {
+    // This tests the custom UTF-8 encoding code in URL.escapeOnto.
+    // Step by a value that is < 128 and coprime with 2**n to sample a
+    // representative range of codepoints.
+    for (int i = 0; i < Character.MAX_CODE_POINT; i += 101) {
+      String input = new StringBuilder(2).appendCodePoint(i).toString();
+      StringWriter buf = new StringWriter();
+      URL.escapeOnto(false, input, buf);
+      String encoded = buf.toString();
+      String actual = URLDecoder.decode(encoded, "UTF-8");
+      assertEquals(encoded, input, actual);
+    }
+  }
 }
