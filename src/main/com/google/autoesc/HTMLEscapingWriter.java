@@ -591,8 +591,7 @@ public class HTMLEscapingWriter {
   }
 
   /** tTagName is the context transition function for the tag name state. */
-  int tTagName(String s, int off, int end)
-      throws IOException, TemplateException {
+  int tTagName(String s, int off, int end) throws IOException {
     int i = eatTagName(s, off, end);
     if (i == end) {
       emit(s, off, end);
