@@ -315,4 +315,21 @@ public final class JSTest extends TestCase {
         "\u00A0\u0100\\u2028\\u2029\ufeff\ufdec\ud834\udd13",
         jsRegexp(input));
   }
+
+  public final void testIsRegexpPrecederKeyword() {
+    String[] kws = new String[] {
+        "break", "case", "continue", "delete", "do", "else", "finally", "in",
+        "instanceof", "return", "throw", "try", "typeof", "void",
+    };
+
+    for (String kw : kws) {
+      assertTrue(kw, JS.isRegexpPrecederKeyword(kw, 0, kw.length()));
+      assertTrue(kw, JS.isRegexpPrecederKeyword(" " + kw, 1, 1 + kw.length()));
+      assertFalse(kw, JS.isRegexpPrecederKeyword(kw, 0, kw.length() - 1));
+      assertTrue(
+          kw, JS.isRegexpPrecederKeyword(kw.toCharArray(), 0, kw.length()));
+    }
+    assertFalse(JS.isRegexpPrecederKeyword("", 0, 0));
+    assertFalse(JS.isRegexpPrecederKeyword("TYPEOF", 0, 6));
+  }
 }

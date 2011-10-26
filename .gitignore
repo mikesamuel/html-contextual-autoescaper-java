@@ -2,3 +2,4 @@
 .project
 classes
 out
+*.pyc

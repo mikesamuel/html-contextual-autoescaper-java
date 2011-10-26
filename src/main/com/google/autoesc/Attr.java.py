@@ -1,3 +1,10 @@
+#!python
+
+# This generates a java source file by taking each method that has a
+# parameters (String s, int off, int end) and generating a copy that
+# takes (char[] s, int off, int end).
+
+src = r"""
 // Copyright (C) 2011 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,11 +21,6 @@
 
 package com.google.autoesc;
 
-import java.util.Locale;
-import java.util.Map;
-
-import com.google.common.collect.ImmutableMap;
-
 /**
  * Utilities for dealing with HTML attribute contexts.
  */
@@ -33,8 +35,8 @@ class Attr {
    * as well as "%URI"-typed attributes from
    * http://www.w3.org/TR/html4/index/attributes.html
    */
-  private static final Map<String, ContentType> ATTR_TYPE_MAP
-    = ImmutableMap.<String, ContentType>builder()
+  private static final Trie<ContentType> ATTR_TYPE_MAP
+    = Trie.<ContentType>builder()
     .put("accept",          ContentType.Plain)
     .put("accept-charset",  ContentType.Unsafe)
     .put("action",          ContentType.URL)
@@ -158,26 +160,29 @@ class Attr {
    * type of the named attribute.
    */
   static ContentType attrType(String name) {
-    name = name.toLowerCase(Locale.ENGLISH);
-    if (name.startsWith("data-")) {
+    return attrType(name, 0, name.length());
+  }
+
+  static ContentType attrType(String s, int off, int end) {
+    if (CharsUtil.startsWithIgnoreCase(s, off, end, "data-")) {
       // Strip data- so that custom attribute heuristics below are
       // widely applied.
       // Treat data-action as URL below.
-      name = name.substring(5);
+      off += 5;
     } else {
-      int colon = name.indexOf(':');
+      int colon = CharsUtil.indexOf(s, off, end, ':');
       if (colon != -1) {
-        if (colon == 5 && name.startsWith("xmlns")) {
+        if (colon == 5 && CharsUtil.startsWith(s, off, end, "xmlns")) {
           return ContentType.URL;
         }
         // Treat svg:href and xlink:href as href below.
-        name = name.substring(colon+1);
+        off += colon + 1;
       }
     }
-    ContentType t = ATTR_TYPE_MAP.get(name);
+    ContentType t = ATTR_TYPE_MAP.getIgnoreCase(s, off, end);
     if (t != null) { return t; }
     // Treat partial event handler names as script.
-    if (name.startsWith("on")) {
+    if (CharsUtil.startsWithIgnoreCase(s, off, end, "on")) {
       return ContentType.JS;
     }
 
@@ -189,11 +194,15 @@ class Attr {
     //  more appropriate attributes or elements."
     // Developers seem to store URL content in data URLs that start
     // or end with "URI" or "URL".
-    if (name.contains("src")
-        || name.contains("uri")
-        || name.contains("url")) {
+    if (CharsUtil.containsIgnoreCase(s, off, end, "src")
+        || CharsUtil.containsIgnoreCase(s, off, end, "uri")
+        || CharsUtil.containsIgnoreCase(s, off, end, "url")) {
       return ContentType.URL;
     }
     return ContentType.Unsafe;
   }
 }
+"""
+
+import dupe_methods
+print dupe_methods.dupe(src)

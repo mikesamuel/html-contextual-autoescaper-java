@@ -1,3 +1,10 @@
+#!python
+
+# This generates a java source file by taking each method that has a
+# parameters (String s, int off, int end) and generating a copy that
+# takes (char[] s, int off, int end).
+
+src = r"""
 // Copyright (C) 2011 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -142,3 +149,7 @@ class URL {
     return s;
   }
 }
+"""  # Fix emacs syntax highlighting "
+
+import dupe_methods
+print dupe_methods.dupe(src)

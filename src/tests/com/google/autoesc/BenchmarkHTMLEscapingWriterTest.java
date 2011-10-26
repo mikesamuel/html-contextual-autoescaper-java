@@ -25,31 +25,44 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
   public final void testMemoizedVersionEquivalent() throws Exception {
     StringWriter sw1 = new StringWriter();
     HTMLEscapingWriter w1 = new HTMLEscapingWriter(sw1);
-    run(w1);
+    runString(w1);
 
     StringWriter sw2 = new StringWriter();
     MemoizingHTMLEscapingWriter w2 = new MemoizingHTMLEscapingWriter(sw2);
-    run(w2);
+    runString(w2);
 
     // First time through, are the two the same?
     assertEquals("first pass", sw1.toString(), sw2.toString());
 
-    run(w1);
-    run(w2);
+    runString(w1);
+    runString(w2);
 
     assertEquals("second pass", sw1.toString(), sw2.toString());
   }
 
-  public final void testHTMLEscapeSpeed() throws Exception {
+  public final void testHTMLEscapeSpeedString() throws Exception {
     long t0 = System.nanoTime();
     for (int runs = N_RUNS; --runs >= 0;) {
       StringWriter sw = new StringWriter();
       HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
-      run(w);
+      runString(w);
     }
     long t1 = System.nanoTime();
     System.err.println(
-        "\nnormal:   " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
+        "\nnormal string:   " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
+        + N_ROWS + " rows each");
+  }
+
+  public final void testHTMLEscapeSpeedChars() throws Exception {
+    long t0 = System.nanoTime();
+    for (int runs = N_RUNS; --runs >= 0;) {
+      StringWriter sw = new StringWriter();
+      HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
+      runChars(w);
+    }
+    long t1 = System.nanoTime();
+    System.err.println(
+        "\nnormal chars:    " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
         + N_ROWS + " rows each");
   }
 
@@ -58,21 +71,44 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     for (int runs = N_RUNS; --runs >= 0;) {
       StringWriter sw = new StringWriter();
       MemoizingHTMLEscapingWriter w = new MemoizingHTMLEscapingWriter(sw);
-      run(w);
+      runString(w);
     }
     long t1 = System.nanoTime();
     System.err.println(
-        "\nmemoized: " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
+        "\nmemoized string: " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
         + N_ROWS + " rows each");
   }
 
-  private void run(HTMLEscapingWriter w) throws Exception {
-    w.writeSafe("<html><head><title>Benchmark</title></head><body><ul>");
+  private static final String
+      HEADER = "<html><head><title>Benchmark</title></head><body><ul>",
+      ROW_START = "<li onclick=picked(",
+      ROW_END = ")>Lorem Ipsum</li>",
+      FOOTER = "</ul>Lorem Ipsum, some boilerplate &copy; blah</body></html>";
+
+  private static final char[]
+      HEADER_CHARS = HEADER.toCharArray(),
+      ROW_START_CHARS = ROW_START.toCharArray(),
+      ROW_END_CHARS = ROW_END.toCharArray(),
+      FOOTER_CHARS = FOOTER.toCharArray();
+
+  private void runString(HTMLEscapingWriter w) throws Exception {
+    w.writeSafe(HEADER);
     for (int i = 0; i < N_ROWS; ++i) {
-      w.writeSafe("<li onclick=picked(");
+      w.writeSafe(ROW_START);
       w.write(i);
-      w.writeSafe(")>Lorem Ipsum</li>");
+      w.writeSafe(ROW_END);
     }
-    w.write("</ul>Lorem Ipsum, some boilerplate &copy; blah</body></html>");
+    w.writeSafe(FOOTER);
   }
+
+  private void runChars(HTMLEscapingWriter w) throws Exception {
+    w.writeSafe(HEADER_CHARS, 0, HEADER_CHARS.length);
+    for (int i = 0; i < N_ROWS; ++i) {
+      w.writeSafe(ROW_START_CHARS, 0, ROW_START_CHARS.length);
+      w.write(i);
+      w.writeSafe(ROW_END_CHARS, 0, ROW_END_CHARS.length);
+    }
+    w.writeSafe(FOOTER_CHARS, 0, FOOTER_CHARS.length);
+  }
+
 }

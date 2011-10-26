@@ -24,27 +24,37 @@ out/war.tstamp: out/war/WEB-INF classes
 	@cp $$(echo ${CLASSPATH} | tr ':' ' ') out/war/WEB-INF/lib
 out/war/WEB-INF: war/WEB-INF
 	@mkdir -p out/war
-	@rm -rf out/war/WEB-INF; cp -r war/WEB-INF out/war/WEB-INF
-	@echo packed appengine testbed
+	@rm -rf out/war/WEB-INF
+	@cp -r war/WEB-INF out/war/WEB-INF \
+	&& echo packed appengine testbed
+out/genfiles.tstamp: src/main/com/google/autoesc/*.java.py
+	@echo generating source files
+	@mkdir -p out/genfiles
+	@(for f in $^; do \
+	  mkdir -p "out/genfiles/$$(dirname $$f)/"; \
+	  python $$f > "out/genfiles/$$(dirname $$f)/$$(basename $$f .py)"; \
+	done) \
+	&& touch out/genfiles.tstamp \
+	&& echo generated source files
 
 classes: out/classes.tstamp
-out/classes.tstamp: out src/main/com/google/autoesc/*.java
+out/classes.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
 	@echo compiling classes
 	@javac -g ${JAVAC_FLAGS} -classpath ${CLASSPATH} -d out \
-	  $$(echo $^ | tr ' ' '\n' | egrep '\.java$$')
-	@touch out/classes.tstamp
-	@echo compiled classes
+	  {,out/genfiles/}src/main/com/google/autoesc/*.java \
+	&& touch out/classes.tstamp \
+	&& echo compiled classes
 
 # Depends on all java files under tests.
 tests: out/tests.tstamp out/com/google/autoesc/alltests
 out/tests.tstamp: out out/classes.tstamp src/tests/com/google/autoesc/*.java
 	@echo compiling tests
 	@javac -g ${JAVAC_FLAGS} -classpath out:${TEST_CLASSPATH} -d out \
-	  $$(echo $^ | tr ' ' '\n' | egrep '\.java$$')
-	@touch out/tests.tstamp
+	  $$(echo $^ | tr ' ' '\n' | egrep '\.java$$') \
+	&& touch out/tests.tstamp \
+	&& echo compiled tests
 out/com/google/autoesc/alltests: src/tests/com/google/autoesc/*Test.java
 	@echo $^ | tr ' ' '\n' | perl -pe 's#^src/tests/|\.java$$##g; s#/#.#g;' > $@
-	@echo compiled tests
 
 runtests: tests
 	@echo running tests
@@ -59,12 +69,12 @@ out/findbugs.txt: out/tests.tstamp
 	  xargs tools/findbugs-1.3.9/bin/findbugs \
 	  -jvmArgs -Xmx1500m \
 	  -textui -effort:max \
-	  -auxclasspath ${TEST_CLASSPATH} > $@
-	@echo findbugs done
+	  -auxclasspath ${TEST_CLASSPATH} > $@ \
+	&& echo findbugs done
 
 # Builds the documentation.
 javadoc: out/javadoc.tstamp
-out/javadoc.tstamp: src/main/com/google/autoesc/*.java
+out/javadoc.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
 	@echo generating javadoc
 	@mkdir -p out/javadoc
 	@javadoc -locale en -d out/javadoc \
@@ -74,9 +84,10 @@ out/javadoc.tstamp: src/main/com/google/autoesc/*.java
 	  -doctitle 'HTML Contextual Autoescaper' \
 	  -header '<a href="https://github.com/mikesamuel/html-contextual-autoescaper-java" target=_top>source repo</a>' \
 	  -J-Xmx500m -nohelp -sourcetab 8 -docencoding UTF-8 -protected \
-	  -encoding UTF-8 -author -version $^ \
-	&& touch out/javadoc.tstamp
-	@echo javadoc generated
+	  -encoding UTF-8 -author -version \
+	  {,out/genfiles/}src/main/com/google/autoesc/*.java \
+	&& touch out/javadoc.tstamp \
+	&& echo javadoc generated
 
 out/autoesc.jar: out/classes.tstamp
 	@echo packing jar

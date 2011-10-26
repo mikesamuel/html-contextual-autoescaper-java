@@ -1,4 +1,10 @@
-// Copyright (C) 2011 Google Inc.
+#!python
+
+# This generates a java source file by taking each method that has a
+# parameters (String s, int off, int end) and generating a copy that
+# takes (char[] s, int off, int end).
+
+src = r"""// Copyright (C) 2011 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,13 +25,10 @@ import java.io.Writer;
 import java.lang.reflect.Array;
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
-
-import com.google.common.collect.ImmutableSet;
 
 /** JS contains utilities for dealing with JavaScript contexts. */
 class JS {
@@ -122,7 +125,7 @@ class JS {
         while (j > off && isJSIdentPart(s.charAt(j - 1))) {
           j--;
         }
-        if (REGEXP_PRECEDER_KEYWORDS.contains(s.substring(j, end))) {
+        if (isRegexpPrecederKeyword(s, j, end)) {
           return Context.JSCtx.Regexp;
         }
         // Otherwise is a punctuator not listed above, or
@@ -132,13 +135,35 @@ class JS {
     }
   }
 
-  /**
-   * REGEXP_PRECEDER_KEYWORDS is a set of reserved JS keywords that can
-   * precede a regular expression in JS source.
-   */
-  private static final Set<String> REGEXP_PRECEDER_KEYWORDS = ImmutableSet.of(
-      "break", "case", "continue", "delete", "do", "else", "finally", "in",
-      "instanceof", "return", "throw", "try", "typeof", "void");
+  static boolean isRegexpPrecederKeyword(String s, int off, int end) {
+    // Below is a set of reserved JS keywords that can
+    // precede a regular expression in JS source.
+    switch (end - off) {
+      case 2:
+        return CharsUtil.startsWith(s, off, end, "do")
+            || CharsUtil.startsWith(s, off, end, "in");
+      case 3:
+        return CharsUtil.startsWith(s, off, end, "try");
+      case 4:
+        return CharsUtil.startsWith(s, off, end, "case")
+            || CharsUtil.startsWith(s, off, end, "else")
+            || CharsUtil.startsWith(s, off, end, "void");
+      case 5:
+        return CharsUtil.startsWith(s, off, end, "break")
+            || CharsUtil.startsWith(s, off, end, "throw");
+      case 6:
+        return CharsUtil.startsWith(s, off, end, "delete")
+            || CharsUtil.startsWith(s, off, end, "return")
+            || CharsUtil.startsWith(s, off, end, "typeof");
+      case 7:
+        return CharsUtil.startsWith(s, off, end, "finally");
+      case 8:
+        return CharsUtil.startsWith(s, off, end, "continue");
+      case 10:
+        return CharsUtil.startsWith(s, off, end, "instanceof");
+    }
+    return false;
+  }
 
   /**
    * isJSIdentPart returns whether the given rune is a JS identifier part.
@@ -398,5 +423,7 @@ class JSValueEscaper {
     seen.put(o, null);
   }
 }
+"""  # Fix emacs syntax highlighting "
 
-// TODO: stop mucking around with char[]s.
+import dupe_methods
+print dupe_methods.dupe(src)

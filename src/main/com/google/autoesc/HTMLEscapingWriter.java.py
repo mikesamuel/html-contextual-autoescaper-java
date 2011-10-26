@@ -1,3 +1,10 @@
+#!python
+
+# This generates a java source file by taking each method that has a
+# parameters (String s, int off, int end) and generating a copy that
+# takes (char[] s, int off, int end).
+
+src = r"""
 // Copyright (C) 2011 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -80,8 +87,21 @@ public class HTMLEscapingWriter {
    * @param s content from a trusted source like a trusted template author.
    */
   public void writeSafe(String s) throws IOException, TemplateException {
-    int off = 0;
-    int end = s.length();
+    writeSafe(s, 0, s.length());
+  }
+
+  /**
+   * Emits a string of content from a trusted source.  The content may be
+   * normalized (all attributes are quoted, comments are elided, and stray
+   * {@code '<'} will be escaped to {@code "&lt;"}) but the content will not
+   * be converted from one type to another.
+   *
+   * @param s content from a trusted source like a trusted template author.
+   * @param off the index into s at which to start.
+   * @param end the index into s at which to stop.
+   */
+  public void writeSafe(String s, int off, int end)
+      throws IOException, TemplateException {
     while (off < end) {
       int oc = context;
       int noff = writeChunk(s, off, end);
@@ -411,13 +431,19 @@ public class HTMLEscapingWriter {
     rtable = delim(context) == Context.Delim.SingleQuote
         ? HTML_DQ_OK : HTML_SQ_OK;
     {
-      String u = HTML.unescapeString(s, off, contentEnd);
-      int offu = 0;
-      int endu = u.length();
-      while (offu < endu) {
-        offu = transition(u, offu, endu);
+      String u = HTML.maybeUnescape(s, off, contentEnd);
+      if (u != null) {
+        int offu = 0;
+        int endu = u.length();
+        while (offu < endu) {
+          offu = transition(u, offu, endu);
+        }
+        off = contentEnd;
+      } else {
+        while (off < contentEnd) {
+          off = transition(s, off, contentEnd);
+        }
       }
-      off = contentEnd;
     }
     if (contentEnd == end) { return end; }  // Remain inside the attribute.
     rtable = null;
@@ -498,12 +524,13 @@ public class HTMLEscapingWriter {
       if (tagStart != tagEnd) {
         int el = isEndTag
           ? Context.Element.None : classifyTagName(s, tagStart, tagEnd);
-        // We've found an HTML tag.
+        // We have found an HTML tag.
         context = element(state(context, Context.State.TagName), el);
         emit(s, off, isStrippingTags ? lt : tagEnd);
         return tagEnd;
       }
-      if (isStrippingTags || !s.regionMatches(lt+1, "!DOCTYPE", 0, 8)) {
+      if (isStrippingTags
+          || !CharsUtil.startsWithIgnoreCase(s, lt+1, end, "!doctype")) {
         emit(s, off, lt);
         out.write("&lt;");
         off = lt + 1;
@@ -665,7 +692,7 @@ public class HTMLEscapingWriter {
           "expected space, attr name, or end of tag, but got ");
     }
     int attr;
-    switch (Attr.attrType(s.substring(i, j))) {
+    switch (Attr.attrType(s, i, j)) {
       case URL:
         attr = Context.Attr.URL;
         break;
@@ -783,7 +810,7 @@ public class HTMLEscapingWriter {
 
   /** tHTMLCmt is the context transition function for stateHTMLCmt. */
   private int tHTMLCmt(String s, int off, int end) {
-    int i = s.indexOf("-->", off);
+    int i = CharsUtil.findHtmlCommentEnd(s, off, end);
     if (i != -1) {
       // Do not emit.
       context = Context.TEXT;
@@ -805,7 +832,8 @@ public class HTMLEscapingWriter {
   private int findSpecialTagEnd(String s, int off, int end) {
     int el = element(context);
     if (el != Context.Element.None) {
-      for (int i = off; (i = s.indexOf("</", off) + 2) != 1; off = i) {
+      for (int i = off; (i = CharsUtil.findEndTag(s, off, end) + 2) != 1;
+           off = i) {
         int j = eatTagName(s, i, end);
         if (el == classifyTagName(s, i, j)) {
           return j;
@@ -842,13 +870,17 @@ public class HTMLEscapingWriter {
 
   /** tURL is the context transition function for the URL state. */
   private int tURL(String s, int off, int end) throws IOException {
-    context = nextURLContext(context, s, off, end);
+    context = nextURLContext(s, off, end, context);
     emit(s, off, end);
     return end;
   }
 
+  private static int nextURLContext(String s, int context) {
+    return nextURLContext(s, 0, s.length(), context);
+  }
+
   /** nextURLContext returns the context after the URL chars in s[off:end]. */
-  private static int nextURLContext(int context, String s, int off, int end) {
+  private static int nextURLContext(String s, int off, int end, int context) {
     int i = off;
     while (i < end && s.charAt(i) != '#' && s.charAt(i) != '?') { ++i; }
     if (i < end) {
@@ -1158,8 +1190,12 @@ public class HTMLEscapingWriter {
           throw new AssertionError(Context.toString(context));
       }
       if (i == end) {
-        String decoded = CSS.decodeCSS(s, off, end);
-        context = nextURLContext(context, decoded, 0, decoded.length());
+        String decoded = CSS.maybeDecodeCSS(s, off, end);
+        if (decoded != null) {
+          context = nextURLContext(decoded, context);
+        } else {
+          context = nextURLContext(s, off, end, context);
+        }
         emit(s, off, end);
         return end;
       }
@@ -1174,8 +1210,12 @@ public class HTMLEscapingWriter {
         emit(s, off, i+1);
         return i+1;
       }
-      String decoded = CSS.decodeCSS(s, off, i+1);
-      context = nextURLContext(context, decoded, 0, decoded.length());
+      String decoded = CSS.maybeDecodeCSS(s, off, i+1);
+      if (decoded != null) {
+        context = nextURLContext(decoded, context);
+      } else {
+        context = nextURLContext(s, off, i+1, context);
+      }
       emit(s, off, i+1);
       off = i + 1;
     }
@@ -1228,39 +1268,39 @@ public class HTMLEscapingWriter {
   }
 
   /**
-   * eatTagName returns the largest j such that s[i:j] is a tag name and
-   * j <= end.
+   * eatTagName returns the largest i such that s[off:i] is a tag name and
+   * i <= end.
    */
-  private static int eatTagName(String s, int i, int end) {
-    if (i == end || !asciiAlpha(s.charAt(i))) {
-      return i;
+  private static int eatTagName(String s, int off, int end) {
+    if (off == end || !asciiAlpha(s.charAt(off))) {
+      return off;
     }
-    int j = i + 1;
-    while (j < end) {
-      char ch = s.charAt(j);
+    int i = off + 1;
+    while (i < end) {
+      char ch = s.charAt(i);
       if (asciiAlphaNum(ch)) {
-        j++;
+        i++;
         continue;
       }
       // Allow "x-y" or "x:y" but not "x-", "-y", or "x--y".
-      if ((ch == ':' || ch == '-') && j+1 < end
-          && asciiAlphaNum(s.charAt(j+1))) {
-        j += 2;
+      if ((ch == ':' || ch == '-') && i+1 < end
+          && asciiAlphaNum(s.charAt(i+1))) {
+        i += 2;
         continue;
       }
       break;
     }
-    return j;
+    return i;
   }
 
-  /** eatWhiteSpace returns the largest j such that s[i:j] is white space. */
-  private static int eatWhiteSpace(String s, int i, int end) {
-    for (int j = i; j < end; ++j) {
-      switch (s.charAt(j)) {
+  /** eatWhiteSpace returns the largest i such that s[off:i] is white space. */
+  private static int eatWhiteSpace(String s, int off, int end) {
+    for (int i = off; i < end; ++i) {
+      switch (s.charAt(i)) {
         case ' ': case '\t': case '\n': case '\f': case '\r':
           break;
         default:
-          return j;
+          return i;
       }
     }
     return end;
@@ -1284,8 +1324,21 @@ public class HTMLEscapingWriter {
    */
   private TemplateException makeTemplateException(
       String s, int off, int pos, int end, String msg) {
-    String str = s.substring(off, pos) + "^" + s.substring(pos, end);
-    return new TemplateException(msg + str);
+    msg = new StringBuilder(msg.length() + end - off + 1)
+        .append(msg).append(s, off, pos).append('^')
+        .append(s, pos, end).toString();
+    return new TemplateException(msg);
+  }
+
+  /**
+   * @param pos the index of the problem in s.
+   */
+  private TemplateException makeTemplateException(
+      char[] s, int off, int pos, int end, String msg) {
+    msg = new StringBuilder(msg.length() + end - off + 1)
+        .append(msg).append(s, off, pos - off).append('^')
+        .append(s, pos, end - pos).toString();
+    return new TemplateException(msg);
   }
 
   /**
@@ -1386,3 +1439,7 @@ public class HTMLEscapingWriter {
   Writer getWriter() { return this.out; }
   void replaceWriter(Writer out) { this.out = out; }
 }
+"""  # Fix emacs syntax highlighting "
+
+import dupe_methods
+print dupe_methods.dupe(src)

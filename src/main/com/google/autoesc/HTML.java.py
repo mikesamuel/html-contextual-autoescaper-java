@@ -1,3 +1,10 @@
+#!python
+
+# This generates a java source file by taking each method that has a
+# parameters (String s, int off, int end) and generating a copy that
+# takes (char[] s, int off, int end).
+
+src = r"""
 // Copyright (C) 2011 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,30 +24,37 @@ package com.google.autoesc;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Locale;
-import java.util.Map;
 
 import javax.annotation.Nullable;
-
-import com.google.common.collect.ImmutableMap;
 
 /** HTML contains utilities for dealing with HTML contexts. */
 class HTML {
   /** Returns s[off:end] but with any HTML entities decoded. */
-  static String unescapeString(String s, int off, int end) {
+  static String unescapeString(String s, int off, int end) /*DONT_DUPE;*/ {
+    String d = maybeUnescape(s, off, end);
+    return d == null ? s.substring(off, end) : d;
+  }
+
+  /**
+   * Returns s[off:end] as a string but with any entitied decoded
+   * or null if no decoding needed.
+   */
+  static @Nullable String maybeUnescape(String s, int off, int end) {
     int amp = off;
     while (amp < end && s.charAt(amp) != '&') { ++amp; }
     if (amp == end) {
-      return s.substring(off, end);
+      return null;
     }
     StringBuilder sb = new StringBuilder(end - off);
-    sb.append(s, off, amp);
+    CharsUtil.append(sb, s, off, amp);
     off = amp;
     do {
       int entityEnd = amp + 1;
+      int limit = Math.min(entityEnd + 32, end); // no entities over length 32.
       if (entityEnd < end && s.charAt(entityEnd) == '#') {
         ++entityEnd;
       }
-      for (; entityEnd < end; ++entityEnd) {
+      for (; entityEnd < limit; ++entityEnd) {
         char ch = s.charAt(entityEnd);
         if (!(('A' <= ch && ch <= 'Z')
                || ('a' <= ch && ch <= 'z')
@@ -48,7 +62,7 @@ class HTML {
           break;
         }
       }
-      sb.append(s, off, amp);
+      CharsUtil.append(sb, s, off, amp);
       if (decodeEntityOnto(s, amp+1, entityEnd, sb)) {
         if (entityEnd < end && s.charAt(entityEnd) == ';') { ++entityEnd; }
       }
@@ -57,7 +71,7 @@ class HTML {
         if (s.charAt(amp) == '&') { break; }
       }
     } while (amp < end);
-    sb.append(s, off, end);
+    CharsUtil.append(sb, s, off, end);
     return sb.toString();
   }
 
@@ -108,13 +122,14 @@ class HTML {
         }
       } while (false);
     } else {
-      String repl = ENTITIES.get(s.substring(off, end));
+      String repl = ENTITIES.get(s, off, end);
       if (repl != null) {
         sb.append(repl);
         return true;
       }
     }
-    sb.append('&').append(s, off, end);
+    sb.append('&');
+    CharsUtil.append(sb, s, off, end);
     return false;
   }
 
@@ -226,8 +241,8 @@ class HTML {
     return Context.attr(context, attr);
   }
 
-  private static final Map<String, String> ENTITIES
-    = ImmutableMap.<String, String>builder()
+  private static final Trie<String> ENTITIES
+    = Trie.<String>builder()
       .put("AElig",                           "\u00C6")
       .put("AMP",                             "\u0026")
       .put("Aacute",                          "\u00C1")
@@ -2356,3 +2371,7 @@ class HTML {
       .build();
 
 }
+"""  # Fix emacs syntax highlighting "
+
+import dupe_methods
+print dupe_methods.dupe(src)

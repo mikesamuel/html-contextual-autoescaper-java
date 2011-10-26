@@ -1,4 +1,10 @@
-// Copyright (C) 2011 Google Inc.
+#!python
+
+# This generates a java source file by taking each method that has a
+# parameters (String s, int off, int end) and generating a copy that
+# takes (char[] s, int off, int end).
+
+src = r"""// Copyright (C) 2011 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,18 +37,27 @@ class CSS {
    * backed by a new array.
    * http://www.w3.org/TR/css3-syntax/#SUBTOK-stringchar defines stringchar.
    */
-  static String decodeCSS(String s, int off, int end) {
+  static String decodeCSS(String s, int off, int end) /* NODUPE; */ {
+    String d = maybeDecodeCSS(s, off, end);
+    return d == null ? s.substring(off, end) : d;
+  }
+
+  /**
+    * maybeDecodeCSS decodes CSS3 escape sequences returning null if there
+    * are no encoded chars.
+    */
+  static @Nullable String maybeDecodeCSS(String s, int off, int end) {
     int i = off;
     while (i < end && s.charAt(i) != '\\') { ++i; }
     if (i == end) {
-      return s.substring(off, end);
+      return null;
     }
     // The UTF-8 sequence for a codepoint is never longer than 1 + the
     // number hex digits need to represent that codepoint, so len(s) is an
     // upper bound on the output length.
     StringBuilder sb = new StringBuilder(end - off);
     while (true) {
-      sb.append(s, off, i);
+      CharsUtil.append(sb, s, off, i);
       if (i+1 >= end) {
         return sb.toString();
       }
@@ -253,3 +268,7 @@ class CSS {
       (0x10000 <= rune && rune <= 0x10ffff);
   }
 }
+"""  # Fix emacs syntax highlighting "
+
+import dupe_methods
+print dupe_methods.dupe(src)

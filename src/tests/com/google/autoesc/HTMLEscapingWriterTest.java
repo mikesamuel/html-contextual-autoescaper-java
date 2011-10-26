@@ -29,11 +29,21 @@ public class HTMLEscapingWriterTest extends TestCase {
 
   private void assertWritten(String html, String outContext, String normalized)
       throws Exception {
-    StringWriter sw = new StringWriter();
-    HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
-    w.writeSafe(html);
-    assertEquals(outContext, Context.toString(w.getContext()));
-    assertEquals(normalized, sw.toString());
+    {
+      StringWriter sw = new StringWriter();
+      HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
+      w.writeSafe(html);
+      assertEquals(outContext, Context.toString(w.getContext()));
+      assertEquals(normalized, sw.toString());
+    }
+    {
+      StringWriter sw = new StringWriter();
+      HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
+      char[] chars = html.toCharArray();
+      w.writeSafe(chars, 0, chars.length);
+      assertEquals(outContext, Context.toString(w.getContext()));
+      assertEquals(normalized, sw.toString());
+    }
   }
 
   public final void testWriteSafe() throws Exception {
@@ -579,12 +589,28 @@ public class HTMLEscapingWriterTest extends TestCase {
     assertTemplateOutput(msg, tmpl, want, want);
   }
 
+  private static void writeSafeToAll(HTMLEscapingWriter[] ws, String s)
+      throws Exception {
+    assert 6 == ws.length;
+    String salt = "'" + s + "'";
+    char[] chars = salt.toCharArray();
+    int len = s.length();
+    ws[0].writeSafe(s);
+    ws[1].writeSafe(salt, 1, 1 + len);
+    ws[2].writeSafe(s);
+    ws[3].writeSafe(salt, 1, 1 + len);
+    ws[4].writeSafe(chars, 1, 1 + len);
+    ws[5].writeSafe(chars, 1, 1 + len);
+  }
+
   private void assertTemplateOutput(
       String msg, String tmpl, String wantHard, String wantSoft)
       throws Exception {
     // We want to test a number of implementations:
-    // (soft, hard) x (memoizing, non-memoizing)
+    // (soft, hard) x (memoizing, non-memoizing, char[])
     StringWriter[] bufs = new StringWriter[] {
+        new StringWriter(tmpl.length() * 2),
+        new StringWriter(tmpl.length() * 2),
         new StringWriter(tmpl.length() * 2),
         new StringWriter(tmpl.length() * 2),
         new StringWriter(tmpl.length() * 2),
@@ -595,17 +621,18 @@ public class HTMLEscapingWriterTest extends TestCase {
         new HTMLEscapingWriter(bufs[1]),
         new MemoizingHTMLEscapingWriter(bufs[2]),
         new MemoizingHTMLEscapingWriter(bufs[3]),
+        new HTMLEscapingWriter(bufs[4]),
+        new HTMLEscapingWriter(bufs[5]),
     };
     ws[1].setSoft(true);
     ws[3].setSoft(true);
+    ws[5].setSoft(true);
 
     int off = 0, end = tmpl.length();
     for (int open; (open = tmpl.indexOf("{{", off)) != -1;) {
       int close = tmpl.indexOf("}}", open + 2);
       if (off != open) {
-        for (HTMLEscapingWriter w : ws) {
-          w.writeSafe(tmpl.substring(off, open));
-        }
+        writeSafeToAll(ws, tmpl.substring(off, open));
       }
       String expr = tmpl.substring(open+2, close).trim();
       if (!"".equals(expr)) {
@@ -637,7 +664,7 @@ public class HTMLEscapingWriterTest extends TestCase {
           value = null;
         } else {
           value = SUBSTS.get(expr);
-          if (!SUBSTS.containsKey(expr)) { System.err.println(value); }
+          if (!SUBSTS.containsKey(expr)) { fail(expr); }
         }
         for (HTMLEscapingWriter w : ws) {
           w.write(value);
@@ -646,9 +673,7 @@ public class HTMLEscapingWriterTest extends TestCase {
       off = close + 2;
     }
     if (off != end) {
-      for (HTMLEscapingWriter w : ws) {
-        w.writeSafe(tmpl.substring(off));
-      }
+      writeSafeToAll(ws, tmpl.substring(off));
     }
 
     assertFalse(ws[0].isSoft());
@@ -659,6 +684,10 @@ public class HTMLEscapingWriterTest extends TestCase {
     assertEquals(msg + ":hard", wantHard, bufs[2].toString());
     assertTrue(ws[3].isSoft());
     assertEquals(msg + ":soft", wantSoft, bufs[3].toString());
+    assertFalse(ws[4].isSoft());
+    assertEquals(msg + ":hardchars", wantHard, bufs[4].toString());
+    assertTrue(ws[5].isSoft());
+    assertEquals(msg + ":softchars", wantSoft, bufs[5].toString());
   }
 
   public final void testSafeWriter() throws Exception {
@@ -1232,10 +1261,21 @@ public class HTMLEscapingWriterTest extends TestCase {
     } catch (TemplateException ex) {
       assertEquals(html, error, ex.getMessage());
     }
+    // None of these error cases trigger exceptions when stripping tags.
     {
-      // None of these error cases trigger exceptions when stripping tags.
       HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter());
       w.stripTags(html, Context.Delim.DoubleQuote);
+    }
+    // Errors should be triggered regardless of whether the input is passed
+    // as a String or a char[]
+    try {
+      HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter());
+      char[] chars = ("'" + html + "'").toCharArray();
+      w.writeSafe(chars, 1, 1 + html.length());
+      w.close();
+      fail("Expected error " + error);
+    } catch (TemplateException ex) {
+      assertEquals(html, error, ex.getMessage());
     }
   }
 
