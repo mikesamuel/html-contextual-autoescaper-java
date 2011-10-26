@@ -17,6 +17,7 @@ out:
 war: out/war.tstamp
 
 out/war.tstamp: out/war/WEB-INF classes
+	@echo packing appengine testbed
 	@touch out/war.stamp
 	@mkdir -p out/war/WEB-INF/lib out/war/WEB-INF/classes
 	@cp -r out/com out/war/WEB-INF/classes/com
@@ -24,38 +25,47 @@ out/war.tstamp: out/war/WEB-INF classes
 out/war/WEB-INF: war/WEB-INF
 	@mkdir -p out/war
 	@rm -rf out/war/WEB-INF; cp -r war/WEB-INF out/war/WEB-INF
+	@echo packed appengine testbed
 
 classes: out/classes.tstamp
 out/classes.tstamp: out src/main/com/google/autoesc/*.java
+	@echo compiling classes
 	@javac -g ${JAVAC_FLAGS} -classpath ${CLASSPATH} -d out \
 	  $$(echo $^ | tr ' ' '\n' | egrep '\.java$$')
 	@touch out/classes.tstamp
+	@echo compiled classes
 
 # Depends on all java files under tests.
 tests: out/tests.tstamp out/com/google/autoesc/alltests
 out/tests.tstamp: out out/classes.tstamp src/tests/com/google/autoesc/*.java
+	@echo compiling tests
 	@javac -g ${JAVAC_FLAGS} -classpath out:${TEST_CLASSPATH} -d out \
 	  $$(echo $^ | tr ' ' '\n' | egrep '\.java$$')
 	@touch out/tests.tstamp
 out/com/google/autoesc/alltests: src/tests/com/google/autoesc/*Test.java
 	@echo $^ | tr ' ' '\n' | perl -pe 's#^src/tests/|\.java$$##g; s#/#.#g;' > $@
+	@echo compiled tests
 
 runtests: tests
+	@echo running tests
 	@java -classpath out:src/tests:${TEST_CLASSPATH} junit.textui.TestRunner com.google.autoesc.AllTests
 
 # Runs findbugs to identify problems.
 findbugs: out/findbugs.txt
 	@cat $^
 out/findbugs.txt: out/tests.tstamp
+	@echo finding bugs
 	@find out/com -type d | \
 	  xargs tools/findbugs-1.3.9/bin/findbugs \
 	  -jvmArgs -Xmx1500m \
 	  -textui -effort:max \
 	  -auxclasspath ${TEST_CLASSPATH} > $@
+	@echo findbugs done
 
 # Builds the documentation.
 javadoc: out/javadoc.tstamp
 out/javadoc.tstamp: src/main/com/google/autoesc/*.java
+	@echo generating javadoc
 	@mkdir -p out/javadoc
 	@javadoc -locale en -d out/javadoc \
 	  -classpath ${CLASSPATH} \
@@ -66,10 +76,13 @@ out/javadoc.tstamp: src/main/com/google/autoesc/*.java
 	  -J-Xmx500m -nohelp -sourcetab 8 -docencoding UTF-8 -protected \
 	  -encoding UTF-8 -author -version $^ \
 	&& touch out/javadoc.tstamp
+	@echo javadoc generated
 
 out/autoesc.jar: out/classes.tstamp
+	@echo packing jar
 	@pushd out; \
 	find com -type f -name \*.class | \
 	  egrep -v 'Tests?([^.]+)?\.class' | \
 	  xargs jar cf autoesc.jar; \
 	popd
+	@echo packaged jar
