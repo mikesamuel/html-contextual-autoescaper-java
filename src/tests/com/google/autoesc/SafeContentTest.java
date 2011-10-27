@@ -37,6 +37,10 @@ public class SafeContentTest extends TestCase {
     String suffix = tmpl.substring(prefixLen + 5);
     for (int i = 0; i < INPUTS.length; ++i) {
       Object input = INPUTS[i];
+      String type = input.getClass().getSimpleName() +
+          (input instanceof SafeContent
+           ? " " + ((SafeContent) input).getContentType()
+           : "");
       StringWriter buf = new StringWriter();
       HTMLEscapingWriter w = new HTMLEscapingWriter(buf);
       w.writeSafe(prefix);
@@ -44,12 +48,30 @@ public class SafeContentTest extends TestCase {
       w.writeSafe(suffix);
       w.close();
       String actual = buf.toString();
+      String testdesc = "`" + tmpl + "` with " + type + " -> `" + actual + "`";
+      assertTrue("prefix " + testdesc, actual.startsWith(prefix));
+      assertTrue("suffix " + testdesc, actual.endsWith(suffix));
       actual = actual.substring(prefixLen, actual.length() - suffix.length());
-      String type = input.getClass().getSimpleName() +
-        (input instanceof SafeContent
-         ? " " + ((SafeContent) input).getContentType()
-         : "");
-      assertEquals("`" + tmpl + "` with " + type, goldens[i], actual);
+      assertEquals(testdesc, goldens[i], actual);
+
+      if (input instanceof String) {
+        String sInput = (String) input;
+        buf = new StringWriter();
+        w = new HTMLEscapingWriter(buf);
+        w.writeSafe(prefix);
+        w.write(("'`," + sInput).toCharArray(), 3, sInput.length());
+        w.writeSafe(suffix);
+        w.close();
+        String actual2 = buf.toString();
+        testdesc = "`" + tmpl + "` char with " + type + " -> `" + actual2 + "`";
+        assertTrue(
+            "prefix char " + testdesc, actual2.startsWith(prefix));
+        assertTrue(
+            "suffix char " + testdesc, actual2.endsWith(suffix));
+        assertEquals(
+            "char equiv " + testdesc, actual,
+            actual2.substring(prefixLen, actual2.length() - suffix.length()));
+      }
     }
   }
 

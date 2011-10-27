@@ -14,12 +14,13 @@
 
 /**
  * Provides XSS protection to template languages.
- *
- * This provides a writer-like object that provides two methods:
- * <ul>
- *   <li>{@link com.google.autoesc.HTMLEscapingWriter#writeSafe}</li>
- *   <li>{@link com.google.autoesc.HTMLEscapingWriter#write}</li>
- * </ul>
+ * <p>
+ * This package provides a writer with an extra 
+ * {@link com.google.autoesc.HTMLEscapingWriter#writeSafe writeSafe} method
+ * and a version of
+ * {@link com.google.autoesc.HTMLEscapingWriter#write(Object) write} that takes
+ * an arbitrary {@code Object}.
+ * <p>
  * A template like
  * <pre>
  * &lt;div style="color: <b>&lt;%=$self.color%&gt;</b>"&gt;

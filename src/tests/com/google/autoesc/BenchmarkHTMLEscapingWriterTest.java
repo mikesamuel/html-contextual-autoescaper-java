@@ -95,7 +95,7 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     w.writeSafe(HEADER);
     for (int i = 0; i < N_ROWS; ++i) {
       w.writeSafe(ROW_START);
-      w.write(i);
+      w.write(Integer.valueOf(i));
       w.writeSafe(ROW_END);
     }
     w.writeSafe(FOOTER);
@@ -105,7 +105,7 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     w.writeSafe(HEADER_CHARS, 0, HEADER_CHARS.length);
     for (int i = 0; i < N_ROWS; ++i) {
       w.writeSafe(ROW_START_CHARS, 0, ROW_START_CHARS.length);
-      w.write(i);
+      w.write(Integer.valueOf(i));
       w.writeSafe(ROW_END_CHARS, 0, ROW_END_CHARS.length);
     }
     w.writeSafe(FOOTER_CHARS, 0, FOOTER_CHARS.length);

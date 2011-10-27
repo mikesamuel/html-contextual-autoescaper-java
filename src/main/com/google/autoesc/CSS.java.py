@@ -191,6 +191,15 @@ class CSS {
   }
 
   /**
+   * escapeStrOnto escapes HTML and CSS special characters using
+   * {@code \<hex>+} escapes.
+   */
+  static void escapeStrOnto(String s, int off, int end, Writer out)
+      throws IOException {
+    REPLACEMENT_TABLE.escapeOnto(s, off, end, out);
+  }
+
+  /**
    * filterValueOnto allows innocuous CSS values in the output including CSS
    * quantities (10px or 25%), ID or class literals (#foo, .bar), keyword values
    * (inherit, blue), and colors (#888).
@@ -205,10 +214,23 @@ class CSS {
       return;
     }
     String s = ReplacementTable.toString(o);
-    s = decodeCSS(s, 0, s.length());
+    filterValueOnto(s, 0, s.length(), out);
+  }
 
-    int n = s.length();
-    StringBuilder idchars = new StringBuilder(n);
+  static void filterValueOnto(String s, int off, int end, Writer out)
+      throws IOException {
+    String d = maybeDecodeCSS(s, off, end);
+    if (d != null) {
+      filterDecodedValueOnto(d, 0, d.length(), out);
+    } else {
+      filterDecodedValueOnto(s, off, end, out);
+    }
+  }
+
+  static void filterDecodedValueOnto(String s, int off, int end, Writer out)
+      throws IOException {
+    char[] idchars = new char[end - off];
+    int idi = 0;
     // CSS3 error handling is specified as honoring string boundaries per
     // http://www.w3.org/TR/css3-syntax/#error-handling :
     //     Malformed declarations. User agents must handle unexpected
@@ -220,7 +242,7 @@ class CSS {
     // So we need to make sure that values do not have mismatched bracket
     // or quote characters to prevent the browser from restarting parsing
     // inside a string that might embed JavaScript source.
-    for (int i = 0; i < n; ++i) {
+    for (int i = off; i < end; ++i) {
       char ch = s.charAt(i);
       switch (ch) {
         case 0: case '"': case '\'': case '(': case ')': case '/': case ';':
@@ -238,15 +260,16 @@ class CSS {
         default:
           if (ch < 0x80 && isCSSNmchar(ch)) {
             if ('A' <= ch && ch <= 'Z') { ch |= 32; }
-            idchars.append(ch);
+            idchars[idi++] = ch;
           }
       }
     }
-    String id = idchars.toString();
-    if (id.contains("expression") || id.contains("mozbinding")) {
-      s = "ZautoescZ";
+    if (CharsUtil.containsIgnoreCase(idchars, 0, idi, "expression")
+        || CharsUtil.containsIgnoreCase(idchars, 0, idi, "mozbinding")) {
+      out.write("ZautoescZ");
+      return;
     }
-    out.write(s);
+    out.write(s, off, end - off);
   }
 
   /**

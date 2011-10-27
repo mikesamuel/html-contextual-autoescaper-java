@@ -666,8 +666,21 @@ public class HTMLEscapingWriterTest extends TestCase {
           value = SUBSTS.get(expr);
           if (!SUBSTS.containsKey(expr)) { fail(expr); }
         }
-        for (HTMLEscapingWriter w : ws) {
-          w.write(value);
+        if (value instanceof String) {
+          String svalue = (String) value;
+          int vlen = svalue.length();
+          svalue = "\"'" + svalue + "'";
+          char[] valueChars = svalue.toCharArray();
+          ws[0].write(value);
+          ws[1].write(value);
+          ws[2].write(svalue, 2, vlen);
+          ws[3].write(svalue, 2, vlen);
+          ws[4].write(valueChars, 2, vlen);
+          ws[5].write(valueChars, 2, vlen);
+        } else {
+          for (HTMLEscapingWriter w : ws) {
+            w.write(value);
+          }
         }
       }
       off = close + 2;
@@ -1215,7 +1228,7 @@ public class HTMLEscapingWriterTest extends TestCase {
     assertTemplateOutput(
             "bad dynamic attribute name / value pair 1",
             "<div {{\"sTyle\"}}=\"{{\"color: expression(alert(1337))\"}}\">",
-            "<div style=\"ZautoescZ\">"
+            "<div sTyle=\"ZautoescZ\">"
         );
     assertTemplateOutput(
             "bad dynamic attribute name / value pair 2",
@@ -1283,7 +1296,7 @@ public class HTMLEscapingWriterTest extends TestCase {
     assertErrorMsg(
         // Missing quote.
         "<a href=\"bar>",
-        "Incomplete document fragment");
+        "Incomplete document fragment ended in URL DoubleQuote PreQuery");
     assertErrorMsg(
         "<a<a",
         "< in attribute name: ^<a");
@@ -1292,10 +1305,10 @@ public class HTMLEscapingWriterTest extends TestCase {
         "< in attribute name: ^<a");
     assertErrorMsg(
         "<a b=1 c=",
-        "Incomplete document fragment");
+        "Incomplete document fragment ended in BeforeValue");
     assertErrorMsg(
         "<script>foo();",
-        "Incomplete document fragment");
+        "Incomplete document fragment ended in JS Script");
     assertErrorMsg(
         "<a onclick=\"alert('Hello \\",
         "unfinished escape sequence in JS string: Hello ^\\");

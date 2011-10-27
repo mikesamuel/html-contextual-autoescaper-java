@@ -14,19 +14,24 @@
 
 package com.google.autoesc;
 
-import java.io.IOException;
-
 /**
- * TemplateException is thrown when broken HTML is encountered that has bad
- * security consequences.
- * It indicates that output written to the underlying channel is not guaranteed
- * to be well-formed under concatenation -- the channel cotnent is not capable
- * of being safely consumed by the far endpoint.
+ * Escaper describes the escaping strategy to apply.
  */
-public class TemplateException extends IOException {
-  static final long serialVersionUID = -8621232850911102715L;
-
-  public TemplateException(String message) {
-    super(message);
-  }
+enum Escaper {
+  ELIDE,
+  ESCAPE_CSS,
+  ESCAPE_HTML,
+  ESCAPE_HTML_ATTR,
+  ESCAPE_JS_REGEXP,
+  ESCAPE_JS_STRING,
+  ESCAPE_JS_VALUE,
+  ESCAPE_RCDATA,
+  ESCAPE_URL,
+  FILTER_CSS_URL,
+  FILTER_CSS_VALUE,
+  FILTER_NAME_ONTO,
+  FILTER_URL,
+  NORMALIZE_HTML,
+  NORMALIZE_URL,
+  ;
 }

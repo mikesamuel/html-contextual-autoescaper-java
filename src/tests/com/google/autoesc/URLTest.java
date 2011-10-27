@@ -115,6 +115,84 @@ public class URLTest extends TestCase {
       String encoded = buf.toString();
       String actual = URLDecoder.decode(encoded, "UTF-8");
       assertEquals(encoded, input, actual);
+
+      StringWriter buf2 = new StringWriter();
+      URL.escapeOnto(
+          ("x" + input).toCharArray(), 1, 1 + input.length(), false, buf2);
+      assertEquals(encoded, buf2.toString());
+    }
+  }
+
+  public final void testURLPrefixAllowed() throws Exception {
+    String[] ok = {
+      "http://example.com/",
+      "HTTP://example.com/",
+      "HTTP://example.com/path",
+      "HTTP://example.com/path?query",
+      "http://example.com:80/path?query#frag",
+      "https://example.com/",
+      "Https://example.com:334/",
+      "http://wiki.ecmascript.org/",
+      "http://ecmascript.org/",
+      "http://javascript.about.org:80/",
+      "mailto:foo@example.com",
+      "mailto:First Last <foo@example.com>",
+      "//example.com/path",
+      "//example.com/path?query",
+      "//example.com/path?query#frag",
+      "//example.com:8080/path?query#frag",
+      "//javascript.about.com/javaccript",
+      "/path",
+      "/path?query",
+      "/path?query#frag",
+      "path",
+      "path?query",
+      "path?query#frag",
+      "?query",
+      "#frag",
+      "alert(1337)",
+    };
+
+    String[] bad = {
+      "javascript:alert(1337)",
+      "JaVaScRiPt:alert(1337)",
+      "JaVa%73cRiPt:alert(1337)",
+      "JaVa&#115cRiPt:alert(1337)",
+      "java\\script:alert(1337)",
+      "vbscript:alert(1337)",
+      "coffeescript:alert 1337",
+      "script:alert(1337)",
+      "ja\0vaS\nscript:evil",
+      " javascript:alert(1337)",
+      "\njavascript:alert(1337)",
+      "data:text/javascript,alert(1337)",
+    };
+
+    for (String okUrl : ok) {
+      String s2 = "javascript:" + okUrl + "/";
+      assertTrue(
+          okUrl, URL.urlPrefixAllowed(okUrl, 0, okUrl.length()));
+      assertTrue(
+          okUrl, URL.urlPrefixAllowed(s2, 11, 11 + okUrl.length()));
+      assertTrue(
+          okUrl, URL.urlPrefixAllowed(okUrl.toCharArray(), 0, okUrl.length()));
+      assertTrue(
+          okUrl,
+          URL.urlPrefixAllowed(s2.toCharArray(), 11, 11 + okUrl.length()));
+    }
+
+    for (String badUrl : bad) {
+      String s2 = "/'" + badUrl + ":";
+      assertFalse(
+          badUrl, URL.urlPrefixAllowed(badUrl, 0, badUrl.length()));
+      assertFalse(
+          badUrl, URL.urlPrefixAllowed(s2, 2, 2 + badUrl.length()));
+      assertFalse(
+          badUrl,
+          URL.urlPrefixAllowed(badUrl.toCharArray(), 0, badUrl.length()));
+      assertFalse(
+          badUrl,
+          URL.urlPrefixAllowed(s2.toCharArray(), 2, 2 + badUrl.length()));
     }
   }
 }

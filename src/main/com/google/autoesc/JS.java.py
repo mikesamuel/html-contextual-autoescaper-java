@@ -250,15 +250,33 @@ class JS {
     STR_REPLACEMENT_TABLE.escapeOnto(o, out);
   }
 
+  static void escapeStrOnto(String s, int off, int end, Writer out)
+      throws IOException {
+    STR_REPLACEMENT_TABLE.escapeOnto(s, off, end, out);
+  }
+
   static void escapeRegexpOnto(@Nullable Object o, Writer out)
       throws IOException {
     REGEX_REPLACEMENT_TABLE.escapeOnto(o, out);
+  }
+
+  static void escapeRegexpOnto(String s, int off, int end, Writer out)
+      throws IOException {
+    REGEX_REPLACEMENT_TABLE.escapeOnto(s, off, end, out);
   }
 
   static void escapeValueOnto(@Nullable Object o, Writer out)
       throws IOException {
     new JSValueEscaper(out).escape(o, true);
   }
+
+  static void escapeValueOnto(String s, int off, int end, Writer out)
+      throws IOException {
+    out.write('\'');
+    STR_REPLACEMENT_TABLE.escapeOnto(s, off, end, out);
+    out.write('\'');
+  }
+
 }
 
 class JSValueEscaper {

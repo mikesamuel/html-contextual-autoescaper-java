@@ -78,7 +78,10 @@ out/javadoc.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
 	@echo generating javadoc
 	@mkdir -p out/javadoc
 	@javadoc -locale en -d out/javadoc \
-	  -classpath ${CLASSPATH} \
+	  -quiet \
+	  -docencoding UTF-8 \
+	  -charset UTF-8 \
+	  -classpath "${CLASSPATH}" \
 	  -use -splitIndex \
 	  -windowtitle 'HTML Contextual Autoescaper' \
 	  -doctitle 'HTML Contextual Autoescaper' \
@@ -91,9 +94,8 @@ out/javadoc.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
 
 out/autoesc.jar: out/classes.tstamp
 	@echo packing jar
-	@pushd out; \
+	@cd out; \
 	find com -type f -name \*.class | \
 	  egrep -v 'Tests?([^.]+)?\.class' | \
-	  xargs jar cf autoesc.jar; \
-	popd
-	@echo packaged jar
+	  xargs jar cf autoesc.jar \
+	&& echo packaged jar

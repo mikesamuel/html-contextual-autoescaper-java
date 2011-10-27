@@ -23,7 +23,6 @@ package com.google.autoesc;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Locale;
 
 import javax.annotation.Nullable;
 
@@ -164,6 +163,12 @@ class HTML {
     REPLACEMENT_TABLE.escapeOnto(o, out);
   }
 
+  /** escapeOnto escapes for inclusion in HTML text. */
+  static void escapeOnto(String s, int off, int end, Writer out)
+      throws IOException {
+    REPLACEMENT_TABLE.escapeOnto(s, off, end, out);
+  }
+
   /**
    * normalizeOnto escapes for inclusion in HTML text but does not break
    * existing entities.
@@ -175,6 +180,15 @@ class HTML {
       return;
     }
     NORM_REPLACEMENT_TABLE.escapeOnto(o, out);
+  }
+
+  /**
+   * normalizeOnto escapes for inclusion in HTML text but does not break
+   * existing entities.
+   */
+  static void normalizeOnto(String s, int off, int end, Writer out)
+      throws IOException {
+    NORM_REPLACEMENT_TABLE.escapeOnto(s, off, end, out);
   }
 
   /** escapeRCDATAOnto escapes for inclusion in an RCDATA element body. */
@@ -205,7 +219,13 @@ class HTML {
       return context;
     }
     String s = ReplacementTable.toString(o);
-    if ("".equals(s)) {
+    return filterNameOnto(s, 0, s.length(), out, context);
+  }
+
+  static int filterNameOnto(
+      String s, int off, int end, Writer out, int context)
+      throws IOException {
+    if (off == end) {
       // Avoid violation of structure preservation.
       // <input checked {{K}}={{V}}>.
       // Without this, if {{K}} is empty then {{V}} is the value of
@@ -214,15 +234,16 @@ class HTML {
       out.write("ZautoescZ");
       return context;
     }
-    s = s.toLowerCase(Locale.ENGLISH);
     ContentType type = Context.state(context) != Context.State.TagName
         // JS if we saw the "on" prefix already.
         ? (Context.attr(context) == Context.Attr.Script ? ContentType.JS
-           : Attr.attrType(s))
+           : Attr.attrType(s, off, end))
         : ContentType.Plain;
-    for (int i = 0, n = s.length(); i < n; ++i) {
+    for (int i = off; i < end; ++i) {
       char ch = s.charAt(i);
-      if (!(('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'z'))) {
+      if (!(('0' <= ch && ch <= '9')
+            || ('A' <= ch && ch <= 'Z')
+            || ('a' <= ch && ch <= 'z'))) {
         out.write("ZautoescZ");
         return context;
       }
@@ -237,7 +258,7 @@ class HTML {
         out.write("ZautoescZ");
         return context;
     }
-    out.write(s);
+    out.write(s, off, end - off);
     return Context.attr(context, attr);
   }
 

@@ -171,12 +171,12 @@ class Attr {
       off += 5;
     } else {
       int colon = CharsUtil.indexOf(s, off, end, ':');
-      if (colon != -1) {
-        if (colon == 5 && CharsUtil.startsWith(s, off, end, "xmlns")) {
+      if (colon >= 0) {
+        if (colon == off+5 && CharsUtil.startsWith(s, off, end, "xmlns")) {
           return ContentType.URL;
         }
         // Treat svg:href and xlink:href as href below.
-        off += colon + 1;
+        off = colon + 1;
       }
     }
     ContentType t = ATTR_TYPE_MAP.getIgnoreCase(s, off, end);

@@ -39,17 +39,23 @@ import static com.google.autoesc.Context.state;
 import static com.google.autoesc.Context.urlPart;
 
 /**
- * A writer like-object that receives chunks of trusted template text via
+ * A writer that receives chunks of trusted template text via
  * {@link HTMLEscapingWriter#writeSafe}, and chunks of untrusted content via
- * {@link HTMLEscapingWriter#write(Object)} and escapes the untrusted content
+ * {@link HTMLEscapingWriter#write} and escapes the untrusted content
  * according to the context established by the trusted portions to prevent XSS.
  *
  * @author Mike Samuel <mikesamuel@gmail.com>
  */
 @NotThreadSafe
-public class HTMLEscapingWriter {
+public class HTMLEscapingWriter extends Writer {
+  /**
+   * underlying is the writer that receives the template output ignoring any
+   * additional encoding done by out.
+   */
+  private Writer underlying;
+  /** out receives the template output. */
   private Writer out;
-  private Writer htmlEscapingWriterDqOk, htmlEscapingWriterSqOk;
+  private EscapingWriter htmlEscapingWriterDqOk, htmlEscapingWriterSqOk;
   /** As defined in {@link Context} */
   private int context;
   /**
@@ -72,10 +78,48 @@ public class HTMLEscapingWriter {
    * True if in soft escaping mode.  @see #isSoft
    */
   private boolean soft;
+  /**
+   * Used to buffer unsafe content written via write(int).
+   */
+  private StringBuilder unsafeBuffered = new StringBuilder();
 
   public HTMLEscapingWriter(Writer out) {
-    this.out = out;
+    this.underlying = this.out = out;
     this.context = Context.TEXT;
+  }
+
+  /**
+   * Closes the underlying writer, and raises an error if the content ends in
+   * an inconsistent state -- if a full, valid HTML fragment has not been
+   * written.
+   */
+  @Override
+  public void close() throws IOException, TemplateException {
+    flush();
+    out.close();
+    int context = this.context;
+    releaseOnClose();
+    if (state(context) != Context.State.Text) {
+      throw new TemplateException("Incomplete document fragment ended in "
+          + Context.toString(context));
+    }
+  }
+
+  private void releaseOnClose() {
+    this.context = -1;
+    this.out = this.underlying = null;
+    this.rtable = null;
+    this.htmlEscapingWriterSqOk = htmlEscapingWriterDqOk = null;
+    this.unsafeBuffered = null;
+  }
+
+  @Override
+  public void flush() throws IOException, TemplateException {
+    if (unsafeBuffered.length() != 0) {
+      String s = unsafeBuffered.toString();
+      unsafeBuffered.setLength(0);
+      write(s);
+    }
   }
 
   /**
@@ -102,6 +146,7 @@ public class HTMLEscapingWriter {
    */
   public void writeSafe(String s, int off, int end)
       throws IOException, TemplateException {
+    flush();
     while (off < end) {
       int oc = context;
       int noff = writeChunk(s, off, end);
@@ -122,39 +167,70 @@ public class HTMLEscapingWriter {
    * {@code <a href="/search?q=}, then a URL query parameter is expected.
    */
   public void write(@Nullable Object o) throws IOException, TemplateException {
+    // In code snippets in comments below, $x indicates an unsafe value.
+    if ("".equals(o) && ignoreEmptyUnsafe()) { return; }
+    flush();
     try {
-      writeUnsafe(o);
+      writeUnsafe(o, chooseEscaper());
+      this.out = this.underlying;
     } catch (Throwable th) {
       // Recovering from a failure to write is problematic since any output
       // buffer could be in an inconsistent state.
       // Prevent reuse of this instance on failure to write.
-      this.context = -1;
-      this.out = null;
-      this.rtable = null;
-      this.htmlEscapingWriterSqOk = htmlEscapingWriterDqOk = null;
-      if (th instanceof RuntimeException) {
-        throw (RuntimeException) th;
-      } else if (th instanceof Error) {
-        throw (Error) th;
-      } else if (th instanceof IOException) {
-        throw (IOException) th;
-      } else if (th instanceof TemplateException) {
-        throw (TemplateException) th;
-      }
-      Throwables.propagate(th);
+      releaseOnClose();
+      Throwables.propagateIfPossible(th, IOException.class);
     }
   }
 
   /**
-   * Closes the underlying writer, and raises an error if the content ends in
-   * an inconsistent state -- if a full, valid HTML fragment has not been
-   * written.
+   * write writes the untrusted content s[off:off+len] to the underlying buffer
+   * escaping as necessary to preserve the security properties of this class.
    */
-  public void close() throws IOException, TemplateException {
-    out.close();
-    if (state(context) != Context.State.Text) {
-      throw new TemplateException("Incomplete document fragment");
+  @Override
+  public void write(char[] s, int off, int len)
+      throws IOException, TemplateException {
+    writeUnsafe(s, off, off + len);
+  }
+
+  @Override
+  public final void write(String s) throws IOException, TemplateException {
+    write(s, 0, s.length());
+  }
+
+  /**
+   * write writes the untrusted content s[off:off+len] to the underlying buffer
+   * escaping as necessary to preserve the security properties of this class.
+   */
+  @Override
+  public void write(String s, int off, int len)
+      throws IOException, TemplateException {
+    writeUnsafe(s, off, off + len);
+  }
+
+  private void writeUnsafe(String s, int off, int end)
+      throws IOException, TemplateException {
+    // In code snippets in comments below, $x indicates an unsafe value.
+    if (off == end && ignoreEmptyUnsafe()) { return; }
+    flush();
+    try {
+      writeUnsafe(s, off, end, chooseEscaper());
+      this.out = this.underlying;
+    } catch (Throwable th) {
+      // Recovering from a failure to write is problematic since any output
+      // buffer could be in an inconsistent state.
+      // Prevent reuse of this instance on failure to write.
+      releaseOnClose();
+      Throwables.propagateIfPossible(th, IOException.class);
     }
+  }
+
+  @Override
+  public void write(int i) throws IOException, TemplateException {
+    unsafeBuffered.appendCodePoint(i);
+    // Flush on chunks.  '/' occurs reasonably frequently with tags and
+    // will not appear inside a URL protocol where splitting could cause
+    // problems.
+    if (unsafeBuffered.length() > 128 && i == '/') { flush(); }
   }
 
   /**
@@ -181,31 +257,147 @@ public class HTMLEscapingWriter {
   int getContext() { return context; }
 
   /**
-   * Writes an unsafe value
+   * writeUnsafe writes an unsafe value escaping as necessary to ensure that
+   * the output is well-formed HTML that obeys the structure preservation,
+   * and code execution properties.
    */
-  private void writeUnsafe(@Nullable Object o)
+  private void writeUnsafe(@Nullable Object o, Escaper esc)
       throws IOException, TemplateException {
-    // In code snippets in comments below, $x indicates an unsafe value.
-    if ("".equals(o)) {
-      // Normally, emitting the empty string should cause no nudge below, but
-      // in some contexts, the empty output is important.
-      switch (state(context)) {
-        case Context.State.AfterName:
-        // Do not allow the statement to be pulled left of the inserted semi in
-        // "var x = $x \n foo()"
-        case Context.State.JS:
-        // Do not allow "/$x/" to be interpreted as a line comment //.
-        case Context.State.JSRegexp:
-        // Do not allow the value in "<input checked $key=$value>" to associate
-        // with the a value-less attribte.
-        case Context.State.Tag:
-          break;
-        default:
-          return;
+    // Choose an escaper appropriate to the context.
+    switch (esc) {
+    case ELIDE: return;
+    case ESCAPE_CSS: CSS.escapeStrOnto(o, out); break;
+    case ESCAPE_HTML: HTML.escapeOnto(o, out); break;
+    case ESCAPE_HTML_ATTR:
+      String safe = ContentType.HTML.derefSafeContent(o);
+      if (safe == null) {
+        attrValueEscaper().escapeOnto(o, underlying);
+      } else {
+        out = underlying;
+        try {
+          stripTags(safe, delim(context));
+        } catch (TemplateException ex) {
+          // It's OK to truncate the content here since it is plain text and
+          // already normalized as an attribute.
+        }
       }
+      break;
+    case ESCAPE_JS_REGEXP: JS.escapeRegexpOnto(o, out); break;
+    case ESCAPE_JS_STRING: JS.escapeStrOnto(o, out); break;
+    case ESCAPE_JS_VALUE: JS.escapeValueOnto(o, out); break;
+    case ESCAPE_RCDATA: HTML.escapeRCDATAOnto(o, out); break;
+    case ESCAPE_URL: URL.escapeOnto(false, o, out); break;
+    case FILTER_CSS_VALUE: CSS.filterValueOnto(o, out); break;
+    case FILTER_NAME_ONTO:
+      context = HTML.filterNameOnto(o, out, context);
+      break;
+    case FILTER_CSS_URL:
+    case FILTER_URL:
+      String s = URL.filterURL(o);
+      int i = 0, n = s.length();
+      for (int cp; i < n; i += Character.charCount(cp)) {
+        cp = s.codePointAt(i);
+        if (!Character.isWhitespace(cp)) { break; }
+      }
+      if (i == n) { return; }
+      context = nextURLContext(s, i, n, context);
+      if (esc == Escaper.FILTER_CSS_URL) {
+        // We conservatively treat <style>background: "$x"</style> as a
+        // URL for the purposes of preventing procotol injection
+        // (where $x starts with "javascipt:"), but CSS escape the
+        // value instead of URL normalizing it.
+        // See comments in tCSS for more detail.
+        writeUnsafe(s, i, n, Escaper.ESCAPE_CSS);
+      } else {
+        writeUnsafe(s, i, n, Escaper.NORMALIZE_URL);
+      }
+      break;
+    case NORMALIZE_HTML: HTML.normalizeOnto(o, out); break;
+    case NORMALIZE_URL: URL.escapeOnto(true, o, out); break;
     }
+  }
+
+  /**
+   * writeUnsafe writes an unsafe value escaping as necessary to ensure that
+   * the output is well-formed HTML that obeys the structure preservation,
+   * and code execution properties.
+   */
+  private void writeUnsafe(String s, int off, int end, Escaper esc)
+      throws IOException, TemplateException {
+    // Choose an escaper appropriate to the context.
+    switch (esc) {
+    case ELIDE: return;
+    case ESCAPE_CSS: CSS.escapeStrOnto(s, off, end, out); break;
+    case ESCAPE_HTML: HTML.escapeOnto(s, off, end, out); break;
+    case ESCAPE_HTML_ATTR:
+      attrValueEscaper().escapeOnto(s, off, end, underlying);
+      break;
+    case ESCAPE_JS_REGEXP: JS.escapeRegexpOnto(s, off, end, out); break;
+    case ESCAPE_JS_STRING: JS.escapeStrOnto(s, off, end, out); break;
+    case ESCAPE_JS_VALUE: JS.escapeValueOnto(s, off, end, out); break;
+    case ESCAPE_RCDATA: HTML.escapeOnto(s, off, end, out); break;
+    case ESCAPE_URL: URL.escapeOnto(s, off, end, false, out); break;
+    case FILTER_CSS_VALUE: CSS.filterValueOnto(s, off, end, out); break;
+    case FILTER_NAME_ONTO:
+      context = HTML.filterNameOnto(s, off, end, out, context);
+      break;
+    case FILTER_CSS_URL:
+    case FILTER_URL:
+      if (!URL.urlPrefixAllowed(s, off, end)) {
+        out.write(URL.FILTER_REPLACEMENT_URL);
+        context = Context.urlPart(context, Context.URLPart.QueryOrFrag);
+        return;
+      }
+      for (int cp; off < end; off += Character.charCount(cp)) {
+        cp = s.codePointAt(end);
+        if (!Character.isWhitespace(cp)) { break; }
+      }
+      if (off == end) { return; }
+      context = nextURLContext(s, off, end, context);
+      if (esc == Escaper.FILTER_CSS_URL) {
+        // We conservatively treat <style>background: "$x"</style> as a
+        // URL for the purposes of preventing procotol injection
+        // (where $x starts with "javascipt:"), but CSS escape the
+        // value instead of URL normalizing it.
+        // See comments in tCSS for more detail.
+        writeUnsafe(s, off, end, Escaper.ESCAPE_CSS);
+      } else {
+        writeUnsafe(s, off, end, Escaper.NORMALIZE_URL);
+      }
+      break;
+    case NORMALIZE_HTML: HTML.normalizeOnto(s, off, end, out); break;
+    case NORMALIZE_URL: URL.escapeOnto(s, off, end, true, out); break;
+    }
+  }
+
+  private boolean ignoreEmptyUnsafe() {
+    // Normally, emitting the empty string should cause no nudge below, but
+    // in some contexts, the empty output is important.
+    switch (state(context)) {
+    case Context.State.AfterName:
+      // Do not allow the statement to be pulled left of the inserted semi in
+      // "var x = $x \n foo()"
+    case Context.State.JS:
+      // Do not allow "/$x/" to be interpreted as a line comment //.
+    case Context.State.JSRegexp:
+      // Do not allow the value in "<input checked $key=$value>" to associate
+      // with the a value-less attribte.
+    case Context.State.Tag:
+      return false;
+    default:
+      return true;
+    }
+  }
+
+  /**
+   * chooseEscaper sets up any content encoding needed on out, returns an
+   * escaper appropriate to the given context and transitions to the context
+   * after the given escaper is run.
+   * Individual escapers may still effect their own transitions by taking
+   * into account details of the value passed.
+   */
+  private Escaper chooseEscaper() throws IOException, TemplateException {
     context = nudge(context, out);
-    Writer out = this.out;
     // Wrap out to escape attribute content.  This allows us to handle
     // JS/CSS content below the same regardless of whether it's in a <script>
     // or <a onclick="...">.
@@ -235,108 +427,71 @@ public class HTMLEscapingWriter {
       case Context.State.CSSURL:
         switch (urlPart(context)) {
           case Context.URLPart.None:
-            String s = URL.filterURL(o);
-            int i = 0;
-            for (int n = s.length(), cp; i < n; i += Character.charCount(cp)) {
-              cp = s.codePointAt(i);
-              if (!Character.isWhitespace(cp)) { break; }
+            switch (state(context)) {
+              // We conservatively treat <style>background: "$x"</style> as a
+              // URL for the purposes of preventing procotol injection
+              // (where $x starts with "javascipt:"), but CSS escape the
+              // value instead of URL normalizing it.
+              // See comments in tCSS for more detail.
+              case Context.State.CSSDqStr: case Context.State.CSSSqStr:
+                return Escaper.FILTER_CSS_URL;
+              default:
+                return Escaper.FILTER_URL;
             }
-            s = s.substring(i);
-            if (s.length() != 0) {
-              context = urlPart(context, Context.URLPart.PreQuery);
-              switch (state(context)) {
-                // We conservatively treat <style>background: "$x"</style> as a
-                // URL for the purposes of preventing procotol injection
-                // (where $x starts with "javascipt:"), but CSS escape the
-                // value instead of URL normalizing it.
-                // See comments in tCSS for more detail.
-                case Context.State.CSSDqStr: case Context.State.CSSSqStr:
-                  CSS.escapeStrOnto(s, out);
-                  break;
-                default:
-                  URL.escapeOnto(true, s, out);
-                  break;
-              }
-            }
-            break;
           case Context.URLPart.PreQuery:
             switch (state(context)) {
               case Context.State.CSSDqStr: case Context.State.CSSSqStr:
-                CSS.escapeStrOnto(o, out);
-                break;
+                return Escaper.ESCAPE_CSS;
               default:
-                URL.escapeOnto(true, o, out);
-                break;
+                return Escaper.NORMALIZE_URL;
             }
-            break;
           case Context.URLPart.QueryOrFrag:
-            URL.escapeOnto(false, o, out);
-            break;
+            return Escaper.ESCAPE_URL;
           default:
             throw new AssertionError(Context.toString(context));
         }
-        break;
       case Context.State.JS:
-        JS.escapeValueOnto(o, out);
         // A slash after a value starts a div operator.
         context = jsCtx(context, Context.JSCtx.DivOp);
-        break;
+        return Escaper.ESCAPE_JS_VALUE;
       case Context.State.JSDqStr: case Context.State.JSSqStr:
-        JS.escapeStrOnto(o, out);
-        break;
+        return Escaper.ESCAPE_JS_STRING;
       case Context.State.JSRegexp:
-        JS.escapeRegexpOnto(o, out);
-        break;
+        return Escaper.ESCAPE_JS_REGEXP;
       case Context.State.CSS:
-        CSS.filterValueOnto(o, out);
-        break;
+        return Escaper.FILTER_CSS_VALUE;
       case Context.State.Text:
         if (soft) {
-          HTML.normalizeOnto(o, out);
+          return Escaper.NORMALIZE_HTML;
         } else {
-          HTML.escapeOnto(o, out);
+          return Escaper.ESCAPE_HTML;
         }
-        break;
       case Context.State.RCDATA:
-        HTML.escapeRCDATAOnto(o, out);
-        break;
+        return Escaper.ESCAPE_RCDATA;
       case Context.State.Attr:
-        String safe = ContentType.HTML.derefSafeContent(o);
-        if (safe == null) {
-          ReplacementTable rt;
-          switch (delim(context)) {
-            case Context.Delim.None:
-              rt = soft ? HTML.NORM_REPLACEMENT_TABLE : HTML.REPLACEMENT_TABLE;
-              break;
-            case Context.Delim.SingleQuote:
-              rt = soft ? NORM_HTML_DQ_OK : HTML_DQ_OK;
-              break;
-            default:
-              rt = soft ? NORM_HTML_SQ_OK : HTML_SQ_OK;
-              break;
-          }
-          rt.escapeOnto(o, this.out);
-        } else {
-          try {
-            stripTags(safe, delim(context));
-          } catch (TemplateException ex) {
-            // It's OK to truncate the content here since it is plain text and
-            // already normalized as an attribute.
-          }
-        }
-        break;
+        return Escaper.ESCAPE_HTML_ATTR;
       case Context.State.AttrName: case Context.State.TagName:
-        // State Tag is included here by nudge.
-        context = HTML.filterNameOnto(o, out, context);
-        break;
+        return Escaper.FILTER_NAME_ONTO;
       default:
         if (Context.State.isComment(context)) {
           // Do nothing.  In writeSafe, we elide comment contents, so skip any
           // value that is written into a comment.
+          return Escaper.ELIDE;
         } else {
           throw new TemplateException(
               "unexpected state " + Context.toString(context));
         }
+    }
+  }
+
+  private ReplacementTable attrValueEscaper() {
+    switch (delim(context)) {
+    case Context.Delim.None:
+      return soft ? HTML.NORM_REPLACEMENT_TABLE : HTML.REPLACEMENT_TABLE;
+    case Context.Delim.SingleQuote:
+      return soft ? NORM_HTML_DQ_OK : HTML_DQ_OK;
+    default:
+      return soft ? NORM_HTML_SQ_OK : HTML_SQ_OK;
     }
   }
 
@@ -596,23 +751,25 @@ public class HTMLEscapingWriter {
   }
 
   /** Returns a Context.Element value corresponding to s[off:end] */
-  private static int classifyTagName(String s, int off, int end) {
-    if (off + 5 > end) { return Context.Element.None; }
-    switch (s.charAt(off)) {
-      case 's': case 'S':
-        if (matchIgnoreCase(s, off+1, end, "cript")) {
-          return Context.Element.Script;
-        } else if (matchIgnoreCase(s, off+1, end, "tyle")) {
-          return Context.Element.Style;
-        }
-        break;
-      case 't': case 'T':
-        if (matchIgnoreCase(s, off+1, end, "extarea")) {
-          return Context.Element.Textarea;
-        } else if (matchIgnoreCase(s, off+1, end, "itle")) {
-          return Context.Element.Title;
-        }
-        break;
+  static int classifyTagName(String s, int off, int end) {
+    switch (end - off) {
+    case 5:
+      if (CharsUtil.startsWithIgnoreCase(s, off, end, "style")) {
+        return Context.Element.Style;
+      } else if (CharsUtil.startsWithIgnoreCase(s, off, end, "title")) {
+        return Context.Element.Title;
+      }
+      break;
+    case 6:
+      if (CharsUtil.startsWithIgnoreCase(s, off, end, "script")) {
+        return Context.Element.Script;
+      }
+      break;
+    case 8:
+      if (CharsUtil.startsWithIgnoreCase(s, off, end, "textarea")) {
+        return Context.Element.Textarea;
+      }
+      break;
     }
     return Context.Element.None;
   }
@@ -1306,19 +1463,6 @@ public class HTMLEscapingWriter {
     return end;
   }
 
-  private static boolean matchIgnoreCase(
-      String s, int off, int end, String lowerCaseMatch) {
-    int n = lowerCaseMatch.length();
-    if (n != end - off) { return false; }
-    for (int i = 0, j = off; i < n; ++i, ++j) {
-      char a = s.charAt(j), b = lowerCaseMatch.charAt(i);
-      if (a != b && !('A' <= a && a <= 'Z' && (a|32) == b)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   /**
    * @param pos the index of the problem in s.
    */
@@ -1402,6 +1546,10 @@ public class HTMLEscapingWriter {
     }
     @Override
     public void write(String s, int off, int n) throws IOException {
+      rt.escapeOnto(s, off, off + n, out);
+    }
+    @Override
+    public void write(char[] s, int off, int n) throws IOException {
       rt.escapeOnto(s, off, off + n, out);
     }
   }

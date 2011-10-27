@@ -23,7 +23,6 @@ package com.google.autoesc;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Locale;
 
 import javax.annotation.Nullable;
 
@@ -45,8 +44,16 @@ class URL {
     } else {
       s = ReplacementTable.toString(o);
     }
-    int off = 0, end = s.length();
-    for (int i = 0, nc; i < end; i += nc) {
+    escapeOnto(s, 0, s.length(), norm, out);
+  }
+
+  /**
+   * escapeURLOnto normalizes (when norm is true) or escapes its input to
+   * produce a valid hierarchical or opaque URL part.
+   */
+  static void escapeOnto(String s, int off, int end, boolean norm, Writer out)
+      throws IOException {
+    for (int i = off, nc; i < end; i += nc) {
       int cp = s.codePointAt(i);
       nc = Character.charCount(cp);
       switch (cp) {
@@ -123,30 +130,33 @@ class URL {
     out.write("0123456789abcdef".charAt(octet & 0xf));
   }
 
+  static final String FILTER_REPLACEMENT_URL = "#ZautoescZ";
+
   /**
    * urlFilter returns its input unless it contains an unsafe protocol in which
    * case it defangs the entire URL.
    */
   static String filterURL(@Nullable Object o) {
-    String s;
     String safe = ContentType.URL.derefSafeContent(o);
-    if (safe != null) {
-      s = safe;
-    } else {
-      s = ReplacementTable.toString(o);
+    if (safe != null) { return safe; }
+    String s = ReplacementTable.toString(o);
+    return urlPrefixAllowed(s, 0, s.length()) ? s : FILTER_REPLACEMENT_URL;
+  }
+
+  static boolean urlPrefixAllowed(String s, int off, int end) {
+    int colon = CharsUtil.indexOf(s, off, end, ':');
+    if (colon < 0) { return true; }
+    int slash = CharsUtil.indexOf(s, off, colon, '/');
+    if (slash >= 0) { return true; }
+    switch (colon - off) {
+    case 4:
+      return CharsUtil.startsWithIgnoreCase(s, off, colon, "http");
+    case 5:
+      return CharsUtil.startsWithIgnoreCase(s, off, colon, "https");
+    case 6:
+      return CharsUtil.startsWithIgnoreCase(s, off, colon, "mailto");
     }
-    int colon = s.indexOf(':');
-    if (colon >= 0) {
-      int slash = s.indexOf('/');
-      if (slash < 0 || slash >= colon) {
-        String protocol = s.substring(0, colon).toLowerCase(Locale.ENGLISH);
-        if (!("http".equals(protocol) || "https".equals(protocol)
-              || "mailto".equals(protocol))) {
-          return "#ZautoescZ";
-        }
-      }
-    }
-    return s;
+    return false;
   }
 }
 """  # Fix emacs syntax highlighting "

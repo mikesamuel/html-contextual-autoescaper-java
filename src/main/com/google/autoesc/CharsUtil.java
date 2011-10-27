@@ -37,6 +37,7 @@ final class CharsUtil {
     return i;
   }
 
+  /** findHtmlCommentEnd is equivalent to {@code indexOf("-->")}. */
   static int findHtmlCommentEnd(char[] s, int off, int end) {
     for (int i = off; i < end; i += 3) {
       char c = s[i];
@@ -61,6 +62,7 @@ final class CharsUtil {
     return i;
   }
 
+  /** findEndTag is equivalent to {@code indexOf("</")}. */
   static int findEndTag(char[] s, int off, int end) {
     for (int i = off; i < end; i += 2) {
       char c = s[i];
@@ -73,70 +75,73 @@ final class CharsUtil {
     return -1;
   }
 
-  static boolean startsWith(
-      String s, int off, int end, String t) {
+  /** True iff s[off:end] starts with t. */
+  static boolean startsWith(String s, int off, int end, String t) {
     int n = t.length();
     if (end - off < n) { return false; }
     for (int i = 0; i < n; ++off, ++i) {
-      if (s.charAt(off) != t.charAt(i)) {
-        return false;
-      }
+      if (s.charAt(off) != t.charAt(i)) { return false; }
     }
     return true;
   }
 
-  static boolean startsWith(
-      char[] s, int off, int end, String t) {
+  /** True iff s[off:end] starts with t. */
+  static boolean startsWith(char[] s, int off, int end, String t) {
     int n = t.length();
     if (end - off < n) { return false; }
     for (int i = 0; i < n; ++off, ++i) {
-      if (s[off] != t.charAt(i)) {
-        return false;
-      }
+      if (s[off] != t.charAt(i)) { return false; }
     }
     return true;
   }
 
+  /**
+   * True if the lower-case version of s[off:end] starts with the given
+   * lower-case string.
+   */
   static boolean startsWithIgnoreCase(
       String s, int off, int end, String lowerCase) {
     int n = lowerCase.length();
     if (end - off < n) { return false; }
     for (int i = 0; i < n; ++off, ++i) {
-      char ch = lcase(s.charAt(off));
-      if (ch != lowerCase.charAt(i)) {
-        return false;
-      }
+      if (lcase(s.charAt(off)) != lowerCase.charAt(i)) { return false; }
     }
     return true;
   }
 
+  /**
+   * True if the lower-case version of s[off:end] starts with the given
+   * lower-case string.
+   */
   static boolean startsWithIgnoreCase(
       char[] s, int off, int end, String lowerCase) {
     int n = lowerCase.length();
     if (end - off < n) { return false; }
     for (int i = 0; i < n; ++off, ++i) {
-      char ch = lcase(s[off]);
-      if (ch != lowerCase.charAt(i)) {
-        return false;
-      }
+      if (lcase(s[off]) != lowerCase.charAt(i)) { return false; }
     }
     return true;
   }
 
+  /** The least index of ch in s between off (inclusive) and end (exclusive). */
   static int indexOf(String s, int off, int end, char ch) {
     for (int i = off; i < end; ++i) {
-      if (s.charAt(i) == ch) { return i - off; }
+      if (s.charAt(i) == ch) { return i; }
     }
     return -1;
   }
 
+  /** The least index of ch in s between off (inclusive) and end (exclusive). */
   static int indexOf(char[] s, int off, int end, char ch) {
     for (int i = off; i < end; ++i) {
-      if (s[i] == ch) { return i - off; }
+      if (s[i] == ch) { return i; }
     }
     return -1;
   }
 
+  /**
+   * True iff lowerCase is a substring of the lower-case version of s[off:end].
+   */
   static boolean containsIgnoreCase(
       String s, int off, int end, String lowerCase) {
     int n = lowerCase.length();
@@ -156,6 +161,9 @@ final class CharsUtil {
     return false;
   }
 
+  /**
+   * True iff lowerCase is a substring of the lower-case version of s[off:end].
+   */
   static boolean containsIgnoreCase(
       char[] s, int off, int end, String lowerCase) {
     int n = lowerCase.length();
@@ -176,16 +184,22 @@ final class CharsUtil {
     return false;
   }
 
+  /** Returns ch or the lower-case equivalent if ch is in ['A'..'Z']. */
   static char lcase(char ch) {
     if ('A' <= ch && ch <= 'Z') { ch |= 32; }
     return ch;
   }
 
+  /** Appends s[off:end] to sb. */
   static void append(StringBuilder sb, String s, int off, int end) {
     sb.append(s, off, end);
   }
 
+  /** Appends s[off:end] to sb. */
   static void append(StringBuilder sb, char[] s, int off, int end) {
+    // StringBuilder.append(String, int, int) treats the second int as an
+    // index, but StringBuilder.append(char[], int, int) treats the second int
+    // as a length.
     sb.append(s, off, end - off);
   }
 }
