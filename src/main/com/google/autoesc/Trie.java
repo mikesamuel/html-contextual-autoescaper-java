@@ -14,13 +14,12 @@
 
 package com.google.autoesc;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
 import javax.annotation.Nullable;
-
-import com.google.common.collect.Lists;
 
 /**
  * A character tree map.
@@ -114,7 +113,7 @@ public final class Trie<T> {
   static final class Builder<S> {
     S value;
     final char ch;
-    final List<Builder<S>> children = Lists.newArrayList();
+    final List<Builder<S>> children = new ArrayList<Builder<S>>();
 
     Builder(@Nullable S value, char ch) {
       this.value = value;

@@ -14,8 +14,6 @@
 
 package com.google.autoesc;
 
-import com.google.common.base.Joiner;
-
 import junit.framework.TestCase;
 
 public class TrieTest extends TestCase {
@@ -25,18 +23,18 @@ public class TrieTest extends TestCase {
         .build();
 
     assertEquals(
-        Joiner.on('\n').join(
-            "null {",
-            "  'o':null {",
-            "    'n':null {",
-            "      'e':1 {}}}",
-            "  't':null {",
-            "    'h':null {",
-            "      'r':null {",
-            "        'e':null {",
-            "          'e':3 {}}}}",
-            "    'w':null {",
-            "      'o':2 {}}}}"),
+        (
+         "null {\n" +
+         "  'o':null {\n" +
+         "    'n':null {\n" +
+         "      'e':1 {}}}\n" +
+         "  't':null {\n" +
+         "    'h':null {\n" +
+         "      'r':null {\n" +
+         "        'e':null {\n" +
+         "          'e':3 {}}}}\n" +
+         "    'w':null {\n" +
+         "      'o':2 {}}}}"),
         t.toString());
     assertEquals(null, t.get("one", 0, 0));
     assertEquals(null, t.get("one", 0, 1));

@@ -15,11 +15,10 @@
 package com.google.autoesc;
 
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.Collections;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import junit.framework.TestCase;
 
@@ -166,13 +165,18 @@ public final class JSTest extends TestCase {
     assertEscapedValue("\r\n\u2028\u2029", "'\\r\\n\\u2028\\u2029'");
     // "\v" == "v" on IE 6 so use "\x0b" instead.
     assertEscapedValue("\t\u000b", "'\\t\\x0b'");
-    assertEscapedValue(ImmutableMap.of("X", 1, "Y", 2), "{'X':1,'Y':2}");
-    assertEscapedValue(ImmutableList.of(), "[]");
+    Map<String, Integer> m = new LinkedHashMap<String, Integer>();
+    m.put("X", 1);
+    m.put("Y", 2);
+    m.put("Z", null);
+    assertEscapedValue(m, "{'X':1,'Y':2,'Z':null}");
+    assertEscapedValue(Collections.emptyList(), "[]");
     assertEscapedValue(Collections.emptySet(), "[]");
-    assertEscapedValue(Lists.<Object>newArrayList(42, "foo", null),
+    assertEscapedValue(Arrays.<Object>asList(42, "foo", null),
                        "[42,'foo',null]");
-    assertEscapedValue(ImmutableList.of("<!--", "</script>", "-->"),
-                       "['\\x3c!--','\\x3c\\/script\\x3e','--\\x3e']");
+    assertEscapedValue(
+        Collections.unmodifiableList(Arrays.asList("<!--", "</script>", "-->")),
+        "['\\x3c!--','\\x3c\\/script\\x3e','--\\x3e']");
     assertEscapedValue("<!--", "'\\x3c!--'");
     assertEscapedValue("-->", "'--\\x3e'");
     assertEscapedValue("<![CDATA[", "'\\x3c![CDATA['");

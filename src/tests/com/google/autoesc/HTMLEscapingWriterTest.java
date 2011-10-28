@@ -15,10 +15,10 @@
 package com.google.autoesc;
 
 import java.io.StringWriter;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 
 import junit.framework.TestCase;
 
@@ -566,23 +566,24 @@ public class HTMLEscapingWriterTest extends TestCase {
         );
   }
 
+  @SuppressWarnings("serial")
   private static Map<String, Object> SUBSTS
-      = ImmutableMap.<String, Object>builder()
-    .put("F", false)
-    .put("T", true)
-    .put("C", "<Cincinatti>")
-    .put("G", "<Goodbye>")
-    .put("H", "<Hello>")
-    .put("A", ImmutableList.of("<a>", "<b>"))
-    .put("E", ImmutableList.<Object>of())
-    .put("N", 42)
-    .put("B", new BadMarshaler())
-    .put("M", new GoodMarshaler())
-    .put("W", new SafeContentString(
+     = new LinkedHashMap<String, Object>() {{
+    this.put("F", false);
+    this.put("T", true);
+    this.put("C", "<Cincinatti>");
+    this.put("G", "<Goodbye>");
+    this.put("H", "<Hello>");
+    this.put("A", Collections.unmodifiableList(Arrays.asList("<a>", "<b>")));
+    this.put("E", Collections.emptyList());
+    this.put("N", 42);
+    this.put("B", new BadMarshaler());
+    this.put("M", new GoodMarshaler());
+    this.put("W", new SafeContentString(
         "&iexcl;<b class=\"foo\">Hello</b>,"
-        + " <textarea>O'World</textarea>!", ContentType.HTML))
-    .put("SU", new SafeContentString("%3cCincinatti%3e", ContentType.URL))
-    .build();
+        + " <textarea>O'World</textarea>!", ContentType.HTML));
+    this.put("SU", new SafeContentString("%3cCincinatti%3e", ContentType.URL));
+  }};
 
   private void assertTemplateOutput(String msg, String tmpl, String want)
       throws Exception {

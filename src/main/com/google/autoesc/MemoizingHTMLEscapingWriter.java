@@ -17,6 +17,7 @@ package com.google.autoesc;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -24,7 +25,6 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
-import com.google.common.collect.Maps;
 
 /**
  * An {@link HTMLEscapingWriter} that is more efficient at handling repeated
@@ -37,7 +37,7 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
 
   // TODO: profile the two cache implementations and decide which one stays.
   private final Map<MemoKey, MemoValue> memoTable = USE_GLOBAL_CACHE
-      ? null : Maps.<MemoKey, MemoValue>newHashMap();
+      ? null : new HashMap<MemoKey, MemoValue>();
   private static final Cache<MemoKey, MemoValue> MEMO_TABLE;
   static {
     MEMO_TABLE = USE_GLOBAL_CACHE ?
@@ -60,7 +60,7 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
       : null;
   }
 
-  MemoizingHTMLEscapingWriter(Writer out) {
+  public MemoizingHTMLEscapingWriter(Writer out) {
     super(out);
   }
 

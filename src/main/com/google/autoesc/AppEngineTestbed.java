@@ -18,6 +18,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -27,9 +29,6 @@ import javax.annotation.Nullable;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 /**
  * A servlet that provides a testbed that security auditors can use to try
@@ -248,7 +247,7 @@ final class JSONParser {
         throw error("unclosed string literal");
       }
       case '[': {
-        List<Object> list = Lists.newArrayList();
+        List<Object> list = new ArrayList<Object>();
         ++off;
         while (off < end) {
           eatSpace();
@@ -270,7 +269,7 @@ final class JSONParser {
         throw error("unclosed array");
       }
       case '{': {
-        Map<String, Object> map = Maps.newLinkedHashMap();
+        Map<String, Object> map = new LinkedHashMap<String, Object>();
         ++off;
         while (off < end) {
           eatSpace();
