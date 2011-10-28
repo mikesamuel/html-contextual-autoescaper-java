@@ -14,6 +14,7 @@
 
 package com.google.autoesc;
 
+import java.io.Writer;
 import java.io.StringWriter;
 
 import junit.framework.TestCase;
@@ -22,7 +23,7 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
   private static final int N_RUNS = 100;
   private static final int N_ROWS = 10000;
 
-  public final void testMemoizedVersionEquivalent() throws Exception {
+  public final void testEquivalence() throws Exception {
     StringWriter sw1 = new StringWriter();
     HTMLEscapingWriter w1 = new HTMLEscapingWriter(sw1);
     runString(w1);
@@ -38,6 +39,18 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     runString(w2);
 
     assertEquals("second pass", sw1.toString(), sw2.toString());
+  }
+
+  public final void testHTMLBaseline() throws Exception {
+    long t0 = System.nanoTime();
+    for (int runs = N_RUNS; --runs >= 0;) {
+      StringWriter w = new StringWriter();
+      runBaseline(w);
+    }
+    long t1 = System.nanoTime();
+    System.err.println(
+        "\nbaseline:        " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
+        + N_ROWS + " rows each");
   }
 
   public final void testHTMLEscapeSpeedString() throws Exception {
@@ -91,7 +104,7 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
       ROW_END_CHARS = ROW_END.toCharArray(),
       FOOTER_CHARS = FOOTER.toCharArray();
 
-  private void runString(HTMLEscapingWriter w) throws Exception {
+  private static void runString(HTMLEscapingWriter w) throws Exception {
     w.writeSafe(HEADER);
     for (int i = 0; i < N_ROWS; ++i) {
       w.writeSafe(ROW_START);
@@ -101,7 +114,7 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     w.writeSafe(FOOTER);
   }
 
-  private void runChars(HTMLEscapingWriter w) throws Exception {
+  private static void runChars(HTMLEscapingWriter w) throws Exception {
     w.writeSafe(HEADER_CHARS, 0, HEADER_CHARS.length);
     for (int i = 0; i < N_ROWS; ++i) {
       w.writeSafe(ROW_START_CHARS, 0, ROW_START_CHARS.length);
@@ -111,4 +124,21 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     w.writeSafe(FOOTER_CHARS, 0, FOOTER_CHARS.length);
   }
 
+  private static void runBaseline(Writer w) throws Exception {
+    w.write(HEADER_CHARS, 0, HEADER_CHARS.length);
+    for (int i = 0; i < N_ROWS; ++i) {
+      w.write(ROW_START_CHARS, 0, ROW_START_CHARS.length);
+      w.write(Integer.valueOf(i));
+      w.write(ROW_END_CHARS, 0, ROW_END_CHARS.length);
+    }
+    w.write(FOOTER_CHARS, 0, FOOTER_CHARS.length);
+  }
+
+  /**
+   * Main method invoked by make profile
+   */
+  public static void main(String... argv) throws Exception {
+    runString(new HTMLEscapingWriter(new StringWriter(1 << 18)));
+    runChars(new HTMLEscapingWriter(new StringWriter(1 << 18)));
+  }
 }

@@ -1,6 +1,6 @@
 CLASSPATH=lib/guava-libraries/guava.jar:lib/jsr305/jsr305.jar:lib/jsdk2.1/servlet.jar
 TEST_CLASSPATH=$(CLASSPATH):lib/junit/junit.jar
-JAVAC_FLAGS=-source 1.5 -target 1.5 -Xlint
+JAVAC_FLAGS=-g -Xlint:all -encoding UTF-8 -source 1.5 -target 1.5
 
 
 default: javadoc runtests findbugs out/autoesc.jar war
@@ -40,7 +40,7 @@ out/genfiles.tstamp: src/main/com/google/autoesc/*.java.py
 classes: out/classes.tstamp
 out/classes.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
 	@echo compiling classes
-	@javac -g ${JAVAC_FLAGS} -classpath ${CLASSPATH} -d out \
+	@javac ${JAVAC_FLAGS} -classpath ${CLASSPATH} -d out \
 	  {,out/genfiles/}src/main/com/google/autoesc/*.java \
 	&& touch out/classes.tstamp \
 	&& echo compiled classes
@@ -49,7 +49,7 @@ out/classes.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
 tests: out/tests.tstamp out/com/google/autoesc/alltests
 out/tests.tstamp: out out/classes.tstamp src/tests/com/google/autoesc/*.java
 	@echo compiling tests
-	@javac -g ${JAVAC_FLAGS} -classpath out:${TEST_CLASSPATH} -d out \
+	@javac ${JAVAC_FLAGS} -classpath out:${TEST_CLASSPATH} -d out \
 	  $$(echo $^ | tr ' ' '\n' | egrep '\.java$$') \
 	&& touch out/tests.tstamp \
 	&& echo compiled tests
@@ -59,6 +59,13 @@ out/com/google/autoesc/alltests: src/tests/com/google/autoesc/*Test.java
 runtests: tests
 	@echo running tests
 	@java -classpath out:src/tests:${TEST_CLASSPATH} junit.textui.TestRunner com.google.autoesc.AllTests
+	@echo running tests w/out extra jars
+	@java -Dtest.nodeps=true -classpath out:lib/junit/junit.jar junit.textui.TestRunner com.google.autoesc.AllTests
+
+# Profiles the benchmark.
+profile: out/java.hprof.txt
+out/java.hprof.txt: out/tests.tstamp
+	java -cp ${TEST_CLASSPATH}:out -agentlib:hprof=cpu=times,format=a,file=out/java.hprof.txt,lineno=n,doe=y com.google.autoesc.BenchmarkHTMLEscapingWriterTest < /dev/null
 
 # Runs findbugs to identify problems.
 findbugs: out/findbugs.txt
