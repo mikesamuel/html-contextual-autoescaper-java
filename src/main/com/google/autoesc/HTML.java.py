@@ -225,8 +225,8 @@ class HTML {
   static int filterNameOnto(
       String s, int off, int end, Writer out, int context)
       throws IOException {
-    if (off == end) {
-      // Avoid violation of structure preservation.
+    if (off == end || end - off >= 64) {
+      // Avoid violation of structure preservation and reject long identifiers.
       // <input checked {{K}}={{V}}>.
       // Without this, if {{K}} is empty then {{V}} is the value of
       // checked, but otherwise {{V}} is the value of the attribute
