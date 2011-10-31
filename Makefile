@@ -47,7 +47,7 @@ out/classes.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
 
 # Depends on all java files under tests.
 tests: out/tests.tstamp out/com/google/autoesc/alltests
-out/tests.tstamp: out out/classes.tstamp src/tests/com/google/autoesc/*.java
+out/tests.tstamp: out/classes.tstamp src/tests/com/google/autoesc/*.java
 	@echo compiling tests
 	@javac ${JAVAC_FLAGS} -classpath out:${TEST_CLASSPATH} -d out \
 	  $$(echo $^ | tr ' ' '\n' | egrep '\.java$$') \
@@ -65,7 +65,7 @@ runtests: tests
 # Profiles the benchmark.
 profile: out/java.hprof.txt
 out/java.hprof.txt: out/tests.tstamp
-	java -cp ${TEST_CLASSPATH}:out -agentlib:hprof=cpu=times,format=a,file=out/java.hprof.txt,lineno=n,doe=y com.google.autoesc.BenchmarkHTMLEscapingWriterTest < /dev/null
+	java -cp ${TEST_CLASSPATH}:out -agentlib:hprof=cpu=times,format=a,file=out/java.hprof.txt,lineno=n,doe=y com.google.autoesc.BenchmarkEscapersTest < /dev/null
 
 # Runs findbugs to identify problems.
 findbugs: out/findbugs.txt

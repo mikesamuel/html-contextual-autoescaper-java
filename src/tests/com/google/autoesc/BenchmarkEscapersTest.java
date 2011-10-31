@@ -14,11 +14,15 @@
 
 package com.google.autoesc;
 
-import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import junit.framework.TestCase;
 
 public class BenchmarkEscapersTest extends TestCase {
+
+  static final int N_RUNS = 2000;
 
   private static final String DENSE_SNIPPET = (
       "CDcd])|[Ff](?:1[89]|3[579EFef]|4[0-79A-Fa-f]|5[\\dA-Fa-f]|7[1-9A-Fa" +
@@ -114,6 +118,138 @@ public class BenchmarkEscapersTest extends TestCase {
       "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
       "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
       "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
+      "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002\n" +
+      "no such server found.\n" +
+      "Der Server wurde nicht gefunden.\n" +
+      "no se ha encontrado el servidor.\n" +
+      "ce serveur est introuvable.\n" +
+      "impossibile trovare il server indicato.\n" +
+      "\u6307\u5b9a\u3055\u308c\u305f\u30b5\u30fc\u30d0\u304c\u898b\u3064" +
+      "\u304b\u308a\u307e\u305b\u3093\u3002\n" +
+      "\ud574\ub2f9 \uc11c\ubc84\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.\n" +
+      "n\u00e5gon s\u00e5dan server kan inte hittas.\n" +
+      "\u627e\u4e0d\u5230\u8fd9\u79cd\u670d\u52a1\u5668\u3002\n" +
       "\u627e\u4e0d\u5230\u9019\u500b\u4f3a\u670d\u5668\u3002"
       );
 
@@ -149,59 +285,93 @@ public class BenchmarkEscapersTest extends TestCase {
       " autem vel eum iriure dolor in hendrerit in vulputate velit esse" +
       " molestie consequat, vel illum dolore eu feugiat nulla facilisis at" +
       " vero eros et accumsan et iusto odio dignissim qui blandit praesent" +
+      " luptatum zzril delenit augue duis dolore te feugait nulla facilisi.\n" +
+      "\n" +
+      "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam" +
+      " nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam" +
+      " erat, sed diam voluptua. At vero eos et accusam et justo duo dolores" +
+      " et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est" +
+      " Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur" +
+      " sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore" +
+      " et dolore magna aliquyam erat, sed diam voluptua. At vero eos et" +
+      " accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren," +
+      " no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum" +
+      " dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod" +
+      " tempor invidunt ut labore et dolore magna aliquyam erat, sed diam" +
+      " voluptua. At vero eos et accusam et justo duo dolores et ea rebum." +
+      " Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum" +
+      " dolor sit amet.\n" +
+      "\n" +
+      "Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse" +
+      " molestie consequat, vel illum dolore eu feugiat nulla facilisis at" +
+      " vero eros et accumsan et iusto odio dignissim qui blandit praesent" +
+      " luptatum zzril delenit augue duis dolore te feugait nulla facilisi." +
+      " Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam" +
+      " nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat" +
+      " volutpat.\n" +
+      "\n" +
+      "Ut wisi enim ad minim veniam, quis nostrud exerci tation ullamcorper" +
+      " suscipit lobortis nisl ut aliquip ex ea commodo consequat. Duis" +
+      " autem vel eum iriure dolor in hendrerit in vulputate velit esse" +
+      " molestie consequat, vel illum dolore eu feugiat nulla facilisis at" +
+      " vero eros et accumsan et iusto odio dignissim qui blandit praesent" +
       " luptatum zzril delenit augue duis dolore te feugait nulla facilisi.");
 
   private static final char[] SPARSE_ASCII_SNIPPET_CHARS
       = SPARSE_ASCII_SNIPPET.toCharArray();
 
-  public final void testDenseSnippet() throws Exception {
+  public final void testEscaperSpeed() throws Exception {
+    // Warmup the JVM.
     doTest(DENSE_SNIPPET, "dense");
-  }
-
-  public final void testSparseSnippet() throws Exception {
+    doTest(DENSE_SNIPPET_CHARS, "char[]");
     doTest(SPARSE_SNIPPET, "sparse");
-  }
-
-  public final void testSparseAsciiSnippet() throws Exception {
+    doTest(SPARSE_SNIPPET_CHARS, "char[]");
     doTest(SPARSE_ASCII_SNIPPET, "sparse ascii");
-  }
+    doTest(SPARSE_ASCII_SNIPPET_CHARS, "char[]");
 
-  public final void testDenseSnippetChars() throws Exception {
-    doTest(DENSE_SNIPPET_CHARS, "dense");
-  }
+    // Collect performance stats.
+    List<Object[]> cols = new ArrayList<Object[]>();
+    List<Object> headerCol = new ArrayList<Object>();
+    headerCol.add("");
+    headerCol.addAll(Arrays.asList(Escaper.values()));
+    cols.add(headerCol.toArray());
 
-  public final void testSparseSnippetChars() throws Exception {
-    doTest(SPARSE_SNIPPET_CHARS, "sparse");
-  }
-
-  public final void testSparseAsciiSnippetChars() throws Exception {
-    doTest(SPARSE_ASCII_SNIPPET_CHARS, "sparse ascii");
-  }
-
-  private final void doTest(String testString, String name) throws Exception {
-    // warmup
-    runEscapers(1000, testString);
-    // Run the escapers.
-    final int N_RUNS = 2000;
-    long[] times = runEscapers(N_RUNS, testString);
-    Escaper[] escapers = Escaper.values();
     System.out.println(
-        "Escapers " + name + " for " + N_RUNS + " runs with "
-        + testString.length() + " chars in ns");
-    writeTable(escapers, times);
+        "Dense includes " + N_RUNS + " runs with "
+        + DENSE_SNIPPET.length() + " chars in us");
+    cols.add(doTest(DENSE_SNIPPET, "dense"));
+    cols.add(doTest(DENSE_SNIPPET_CHARS, "char[]"));
+    System.out.println(
+        "Sparse includes " + N_RUNS + " runs with "
+        + SPARSE_SNIPPET.length() + " chars in us");
+    cols.add(doTest(SPARSE_SNIPPET, "sparse"));
+    cols.add(doTest(SPARSE_SNIPPET_CHARS, "char[]"));
+    System.out.println(
+        "Sparse ASCII includes " + N_RUNS + " runs with "
+        + SPARSE_ASCII_SNIPPET.length() + " chars in us");
+    cols.add(doTest(SPARSE_ASCII_SNIPPET, "sparse ASCII"));
+    cols.add(doTest(SPARSE_ASCII_SNIPPET_CHARS, "char[]"));
+    TestUtil.writeTable(cols.toArray());
   }
 
-  private final void doTest(char[] testString, String name) throws Exception {
-    // warmup
-    runEscapers(1000, testString);
+  private final Object[] doTest(String testString, String name)
+      throws Exception {
     // Run the escapers.
-    final int N_RUNS = 2000;
     long[] times = runEscapers(N_RUNS, testString);
-    Escaper[] escapers = Escaper.values();
-    System.out.println(
-        "Escapers " + name + " char[] for " + N_RUNS + " runs with "
-        + testString.length + " chars in ns");
-    writeTable(escapers, times);
+    Object[] col = new Object[times.length + 1];
+    col[0] = name;
+    for (int i = 0; i < times.length; ++i) { col[i+1] = times[i]; }
+    return col;
+  }
+
+  private final Object[] doTest(char[] testString, String name)
+      throws Exception {
+    // Run the escapers.
+    long[] times = runEscapers(N_RUNS, testString);
+    Object[] col = new Object[times.length + 1];
+    col[0] = name;
+    for (int i = 0; i < times.length; ++i) { col[i+1] = times[i]; }
+    return col;
   }
 
   static long[] runEscapers(int runs, String s) throws Exception {
@@ -219,7 +389,7 @@ public class BenchmarkEscapersTest extends TestCase {
           w.writeUnsafe(s, 0, len, escapers[i]);
         }
         long t1 = System.nanoTime();
-        times[i] = t1 - t0;
+        times[i] = (t1 - t0) / 1000;
       }
     } finally {
       w.close();
@@ -242,42 +412,12 @@ public class BenchmarkEscapersTest extends TestCase {
           w.writeUnsafe(s, 0, len, escapers[i]);
         }
         long t1 = System.nanoTime();
-        times[i] = t1 - t0;
+        times[i] = (t1 - t0) / 1000;
       }
     } finally {
       w.close();
     }
     return times;
-  }
-
-  private static void writeTable(Object... cols) {
-    int nRows = Array.getLength(cols[0]);
-    int nCols = cols.length;
-    int[] widths = new int[nRows];
-    StringBuilder[] sb = new StringBuilder[nRows];
-    for (int j = 0; j < nRows; ++j) {
-      sb[j] = new StringBuilder();
-    }
-    for (int i = 0; i < nCols; ++i) {
-      Object col = cols[i];
-      int maxWidth = 1;
-      for (int j = 0; j < nRows; ++j) {
-        String s = String.valueOf(Array.get(col, j));
-        sb[j].append(s);
-        widths[j] = s.length();
-        maxWidth = Math.max(maxWidth, s.length());
-      }
-      if (i+1 < nCols) {
-        for (int j = 0; j < nRows; ++j) {
-          for (int padding = maxWidth - widths[j] + 1; --padding >= 0;) {
-            sb[j].append(' ');
-          }
-        }
-      }
-    }
-    for (StringBuilder s : sb) {
-      System.out.println(s);
-    }
   }
 
   public static void main(String ...args) throws Exception {

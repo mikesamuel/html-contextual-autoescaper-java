@@ -16,12 +16,18 @@ package com.google.autoesc;
 
 import java.io.Writer;
 import java.io.StringWriter;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import junit.framework.TestCase;
 
 public class BenchmarkHTMLEscapingWriterTest extends TestCase {
-  private static final int N_RUNS = 100;
-  private static final int N_ROWS = 10000;
+  static final int N_RUNS = 100;
+  static final int N_ROWS = 10000;
+
+  static final NumberFormat TWO_DEC_PLACES = new DecimalFormat("0.##");
 
   public final void testEquivalence() throws Exception {
     StringWriter sw1 = new StringWriter();
@@ -41,19 +47,55 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     assertEquals("second pass", sw1.toString(), sw2.toString());
   }
 
-  public final void testHTMLBaseline() throws Exception {
+  public final void testWriteSafeSpeed() throws Exception {
+    // Warm up the JIT.
+    timeBaseline();
+    timeNormalString();
+    timeNormalChars();
+    timeMemoized();
+
+    List<Object> bmark = new ArrayList<Object>();
+    List<Object> time = new ArrayList<Object>();
+    List<Object> ratio = new ArrayList<Object>();
+    bmark.add("");
+    time.add("Time us");
+    ratio.add("t/baseline");
+
+    long bl = timeBaseline();
+    long ns = timeNormalString();
+    long nc = timeNormalChars();
+    long mm = timeMemoized();
+
+    bmark.add("baseline");
+    time.add(bl);
+    ratio.add(TWO_DEC_PLACES.format(bl / ((double) bl)));
+    bmark.add("normal str");
+    time.add(ns);
+    ratio.add(TWO_DEC_PLACES.format(ns / ((double) bl)));
+    bmark.add("normal chars");
+    time.add(nc);
+    ratio.add(TWO_DEC_PLACES.format(nc / ((double) bl)));
+    bmark.add("memoized");
+    time.add(mm);
+    ratio.add(TWO_DEC_PLACES.format(mm / ((double) bl)));
+
+    System.err.println(
+        "\nTesting escape safe in us for " + N_RUNS + " runs of "
+        + N_ROWS + " rows each");
+    TestUtil.writeTable(bmark.toArray(), time.toArray(), ratio.toArray());
+  }
+
+  private long timeBaseline() throws Exception {
     long t0 = System.nanoTime();
     for (int runs = N_RUNS; --runs >= 0;) {
       StringWriter w = new StringWriter();
       runBaseline(w);
     }
     long t1 = System.nanoTime();
-    System.err.println(
-        "\nbaseline:        " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
-        + N_ROWS + " rows each");
+    return (t1 - t0) / 1000;
   }
 
-  public final void testHTMLEscapeSpeedString() throws Exception {
+  private long timeNormalString() throws Exception {
     long t0 = System.nanoTime();
     for (int runs = N_RUNS; --runs >= 0;) {
       StringWriter sw = new StringWriter();
@@ -61,12 +103,10 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
       runString(w);
     }
     long t1 = System.nanoTime();
-    System.err.println(
-        "\nnormal string:   " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
-        + N_ROWS + " rows each");
+    return (t1 - t0) / 1000;
   }
 
-  public final void testHTMLEscapeSpeedChars() throws Exception {
+  private long timeNormalChars() throws Exception {
     long t0 = System.nanoTime();
     for (int runs = N_RUNS; --runs >= 0;) {
       StringWriter sw = new StringWriter();
@@ -74,12 +114,10 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
       runChars(w);
     }
     long t1 = System.nanoTime();
-    System.err.println(
-        "\nnormal chars:    " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
-        + N_ROWS + " rows each");
+    return (t1 - t0) / 1000;
   }
 
-  public final void testHTMLEscapeSpeedMemoizing() throws Exception {
+  private long timeMemoized() throws Exception {
     long t0 = System.nanoTime();
     for (int runs = N_RUNS; --runs >= 0;) {
       StringWriter sw = new StringWriter();
@@ -87,9 +125,7 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
       runString(w);
     }
     long t1 = System.nanoTime();
-    System.err.println(
-        "\nmemoized string: " + (t1 - t0) + " ns for " + N_RUNS + " runs of "
-        + N_ROWS + " rows each");
+    return (t1 - t0) / 1000;
   }
 
   private static final String
