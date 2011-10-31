@@ -261,7 +261,8 @@ public class HTMLEscapingWriter extends Writer {
    * the output is well-formed HTML that obeys the structure preservation,
    * and code execution properties.
    */
-  private void writeUnsafe(@Nullable Object o, Escaper esc)
+  @VisibleForTesting
+  void writeUnsafe(@Nullable Object o, Escaper esc)
       throws IOException, TemplateException {
     // Choose an escaper appropriate to the context.
     switch (esc) {
@@ -322,7 +323,8 @@ public class HTMLEscapingWriter extends Writer {
    * the output is well-formed HTML that obeys the structure preservation,
    * and code execution properties.
    */
-  private void writeUnsafe(String s, int off, int end, Escaper esc)
+  @VisibleForTesting
+  void writeUnsafe(String s, int off, int end, Escaper esc)
       throws IOException, TemplateException {
     // Choose an escaper appropriate to the context.
     switch (esc) {
@@ -349,7 +351,7 @@ public class HTMLEscapingWriter extends Writer {
         return;
       }
       for (int cp; off < end; off += Character.charCount(cp)) {
-        cp = s.codePointAt(end);
+        cp = s.codePointAt(off);
         if (!Character.isWhitespace(cp)) { break; }
       }
       if (off == end) { return; }
@@ -520,7 +522,8 @@ public class HTMLEscapingWriter extends Writer {
       return transition(s, off, end);
     }
 
-    // Find the end of the delimiter.
+    // Find the end of the value and set this.rtable so we can reencode the
+    // value as necessary.
     int valueEnd = end;  // After any close quote.
     int contentEnd = off;  // At the end of the content but before any quote.
     switch (delim(context)) {
@@ -531,6 +534,7 @@ public class HTMLEscapingWriter extends Writer {
             break;
           }
         }
+        this.rtable = HTML_SQ_OK;
         break;
       case Context.Delim.SingleQuote:
         for (; contentEnd < end; ++contentEnd) {
@@ -539,11 +543,12 @@ public class HTMLEscapingWriter extends Writer {
             break;
           }
         }
+        this.rtable = HTML_DQ_OK;
         break;
       case Context.Delim.SpaceOrTagEnd:
         for (; contentEnd < end; ++contentEnd) {
           char ch = s.charAt(contentEnd);
-          // Determined empirically by running the below in various browsers.
+          // By running the below in various browsers
           // var div = document.createElement("DIV");
           // for (var i = 0; i < 0x10000; ++i) {
           //   div.innerHTML = "<span title=x" +
@@ -552,39 +557,40 @@ public class HTMLEscapingWriter extends Writer {
           //   if (span.title.indexOf("bar") < 0)
           //     document.write("<p>U+" + i.toString(16));
           // }
-          if (ch == '\t' || ch == '\n' || ch == '\f' || ch == '\r' || ch == ' '
-              || ch == '>') {
+          // we empircally determine that unquoted attributes are closed by
+          // '\t', '\n', '\f', '\r', ' ', '>'.
+          // For efficiency, we treat '>', ' ', and any control character
+          // in [\0..\037] as an unquoted attribute breaker, and let our
+          // quote normalization pick up the slack.
+          if (ch <= ' ' || ch == '>') {
             valueEnd = contentEnd;
             break;
           }
         }
-        break;
-      case Context.Delim.None:
-        throw new AssertionError();
-    }
-    if (delim(context) == Context.Delim.SpaceOrTagEnd) {
-      // http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state
-      // lists the runes below as error characters.
-      // Error out because HTML parsers may differ on whether
-      // "<a id= onclick=f("     ends inside id's or onclick's value,
-      // "<a class=`foo "        ends inside a value,
-      // "<a style=font:'Arial'" needs open-quote fixup.
-      // IE treats '`' as a quotation character.
-      int i = off;
-      for (; i < valueEnd; ++i) {
-        char ch = s.charAt(i);
-        if (ch == '"' || ch == '\'' || ch == '<' || ch == '=' || ch == '`') {
-          throw makeTemplateException(
-              s, off, i, valueEnd, ch + " in unquoted attr: ");
+
+        // http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state
+        // lists the runes below as error characters.
+        // Error out because HTML parsers may differ on whether
+        // "<a id= onclick=f("     ends inside id's or onclick's value,
+        // "<a class=`foo "        ends inside a value,
+        // "<a style=font:'Arial'" needs open-quote fixup.
+        // IE treats '`' as a quotation character.
+        int i = off;
+        for (; i < valueEnd; ++i) {
+          char ch = s.charAt(i);
+          if (ch == '"' || ch == '\'' || ch == '<' || ch == '=' || ch == '`') {
+            throw makeTemplateException(
+                s, off, i, valueEnd, ch + " in unquoted attr: ");
+          }
         }
-      }
+        // tTag inserted an open quote so that we don't leave unquoted
+        // attributes unquoted.
+        this.rtable = HTML_SQ_OK;
+        break;
+      default:
+        throw new IllegalStateException(Context.toString(context));
     }
 
-    // Decode the value so non-HTML rules can easily handle
-    //     <button onclick="alert(&quot;Hi!&quot;)">
-    // without having to entity decode token boundaries.
-    rtable = delim(context) == Context.Delim.SingleQuote
-        ? HTML_DQ_OK : HTML_SQ_OK;
     {
       String u = HTML.maybeUnescape(s, off, contentEnd);
       if (u != null) {
@@ -1574,7 +1580,7 @@ public class HTMLEscapingWriter extends Writer {
       = new ReplacementTable(HTML_DQ_OK).add('&', null);
 
   /** Discards all input. */
-  private static final Writer DEV_NULL = new Writer()  {
+  static final Writer DEV_NULL = new Writer()  {
     @Override public void close() throws IOException { /* no-op */ }
     @Override public void flush() throws IOException { /* no-op */ }
     @Override public void write(char[] cbuf, int off, int len) { /* no-op */ }

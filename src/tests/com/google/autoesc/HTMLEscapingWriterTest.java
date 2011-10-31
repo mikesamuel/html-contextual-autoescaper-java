@@ -773,6 +773,21 @@ public class HTMLEscapingWriterTest extends TestCase {
             "<a href='  #ZautoescZ'>"
         );
     assertTemplateOutput(
+            "dangerousURLStart3",
+            "<a href='{{\"  \"}}{{\"javascript:alert(%22pwned%22)\"}}'>",
+            "<a href='#ZautoescZ'>"
+        );
+    assertTemplateOutput(
+            "innocuousURLStart1",
+            "<a href='{{\" /foo/\"}}{{\"javascript:alert(%22pwned%22)\"}}'>",
+            "<a href='/foo/javascript:alert%28%22pwned%22%29'>"
+        );
+    assertTemplateOutput(
+            "innocuousURLStart2",
+            "<a href='{{\" /foo/\"}}{{\" javascript:alert(%22pwned%22)\"}}'>",
+            "<a href='/foo/%20javascript:alert%28%22pwned%22%29'>"
+        );
+    assertTemplateOutput(
             "nonHierURL",
             "<a href={{\"mailto:Muhammed \\\"The Greatest\\\" Ali <m.ali@example.com>\"}}>",
             "<a href=\"mailto:Muhammed%20%22The%20Greatest%22%20Ali%20%3cm.ali@example.com%3e\">"
