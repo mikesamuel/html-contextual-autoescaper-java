@@ -81,7 +81,8 @@ public class AllTests {
       Arrays.asList(
           // Depends on JSDK.
           "com.google.autoesc.AppEngineTestbedTest",
-          // Don't run twice.
-          "com.google.autoesc.BenchmarkHTMLEscapingWriterTest"));
+          // Don't run slow tests twice.
+          "com.google.autoesc.BenchmarkHTMLEscapingWriterTest",
+          "com.google.autoesc.BenchmarkEscapersTest"));
 
 }
