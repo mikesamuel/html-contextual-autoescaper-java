@@ -47,48 +47,75 @@ class URL {
     escapeOnto(s, 0, s.length(), norm, out);
   }
 
+  private static final boolean[] URL_NO_ENCODE = new boolean[127];
+  private static final boolean[] NORM_URL_NO_ENCODE = new boolean[127];
+
+  static {
+    NORM_URL_NO_ENCODE['!'] = true;
+    NORM_URL_NO_ENCODE['#'] = true;
+    NORM_URL_NO_ENCODE['$'] = true;
+    NORM_URL_NO_ENCODE['&'] = true;
+    NORM_URL_NO_ENCODE['*'] = true;
+    NORM_URL_NO_ENCODE['+'] = true;
+    NORM_URL_NO_ENCODE[','] = true;
+    NORM_URL_NO_ENCODE['/'] = true;
+    NORM_URL_NO_ENCODE[':'] = true;
+    NORM_URL_NO_ENCODE[';'] = true;
+    NORM_URL_NO_ENCODE['='] = true;
+    NORM_URL_NO_ENCODE['?'] = true;
+    NORM_URL_NO_ENCODE['@'] = true;
+    NORM_URL_NO_ENCODE['['] = true;
+    NORM_URL_NO_ENCODE[']'] = true;
+
+    // Single quote and parens are sub-delims in RFC 3986, but we
+    // escape them so the output can be embedded in in single
+    // quoted attributes and unquoted CSS url(...) constructs.
+    // Single quotes are reserved in URLs, but are only used in
+    // the obsolete "mark" rule in an appendix in RFC 3986
+    // so can be safely encoded.
+
+    // Unreserved according to RFC 3986 sec 2.3
+    // "For consistency, percent-encoded octets in the ranges of
+    // ALPHA (%41-%5A and %61-%7A), DIGIT (%30-%39), hyphen (%2D),
+    // period (%2E), underscore (%5F), or tilde (%7E) should not be
+    // created by URI producers.
+    URL_NO_ENCODE['-'] = true;
+    URL_NO_ENCODE['.'] = true;
+    URL_NO_ENCODE['_'] = true;
+    URL_NO_ENCODE['~'] = true;
+    NORM_URL_NO_ENCODE['-'] = true;
+    NORM_URL_NO_ENCODE['.'] = true;
+    NORM_URL_NO_ENCODE['_'] = true;
+    NORM_URL_NO_ENCODE['~'] = true;
+
+    // Unreserved according to RFC 3986 sec 2.3
+    for (int i = '0'; i <= '9'; ++i) {
+      URL_NO_ENCODE[i] = NORM_URL_NO_ENCODE[i] = true;
+    }
+    for (int i = 'A'; i <= 'Z'; ++i) {
+      URL_NO_ENCODE[i] = NORM_URL_NO_ENCODE[i] = true;
+    }
+    for (int i = 'a'; i <= 'z'; ++i) {
+      URL_NO_ENCODE[i] = NORM_URL_NO_ENCODE[i] = true;
+    }
+  }
+
   /**
    * escapeURLOnto normalizes (when norm is true) or escapes its input to
    * produce a valid hierarchical or opaque URL part.
    */
   static void escapeOnto(String s, int off, int end, boolean norm, Writer out)
       throws IOException {
+    boolean[] noEncode = norm ? NORM_URL_NO_ENCODE : URL_NO_ENCODE;
     for (int i = off, nc; i < end; i += nc) {
       int cp = s.codePointAt(i);
       nc = Character.charCount(cp);
-      switch (cp) {
-        // Single quote and parens are sub-delims in RFC 3986, but we
-        // escape them so the output can be embedded in in single
-        // quoted attributes and unquoted CSS url(...) constructs.
-        // Single quotes are reserved in URLs, but are only used in
-        // the obsolete "mark" rule in an appendix in RFC 3986
-        // so can be safely encoded.
-        case '!': case '#': case '$': case '&': case '*': case '+': case ',':
-        case '/': case ':': case ';': case '=': case '?': case '@': case '[':
-        case ']':
-          if (norm) {
-            continue;
-          }
-          break;
-        // Unreserved according to RFC 3986 sec 2.3
-        // "For consistency, percent-encoded octets in the ranges of
-        // ALPHA (%41-%5A and %61-%7A), DIGIT (%30-%39), hyphen (%2D),
-        // period (%2E), underscore (%5F), or tilde (%7E) should not be
-        // created by URI producers
-        case '-': case '.': case '_': case '~':
-          continue;
-        case '%':
-          // When normalizing do not re-encode valid escapes.
-          if (norm && i+2 < end && isHex(s.charAt(i+1))
-              && isHex(s.charAt(i+2))) {
-            continue;
-          }
-          break;
-        default:
-          // Unreserved according to RFC 3986 sec 2.3
-          if ('a' <= cp && cp <= 'z') { continue; }
-          if ('A' <= cp && cp <= 'Z') { continue; }
-          if ('0' <= cp && cp <= '9') { continue; }
+      if (cp < noEncode.length && noEncode[cp]) { continue; }
+      // When normalizing do not re-encode valid escapes.
+      if (cp == '%' && norm && i+2 < end && isHex(s.charAt(i+1))
+          && isHex(s.charAt(i+2))) {
+        i = i+2;  // Skip hex digits.
+        continue;
       }
       out.write(s, off, i - off);
       off = i + nc;
