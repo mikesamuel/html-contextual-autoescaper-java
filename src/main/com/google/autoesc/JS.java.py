@@ -23,8 +23,21 @@ package com.google.autoesc;
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -370,6 +383,7 @@ class JSValueEscaper {
           return;
         default:
           // Fall through to cases below.
+          o = ct.toString();
       }
     }
     if (o instanceof JSONMarshaler) {
@@ -429,7 +443,7 @@ class JSValueEscaper {
         }
         out.write(']');
       }
-    } else {
+    } else if (!beanToJS(o)) {
       out.write('\'');
       JS.STR_REPLACEMENT_TABLE.escapeOnto(o, out);
       out.write('\'');
@@ -439,6 +453,205 @@ class JSValueEscaper {
   private void markSeen(Object o) {
     if (seen == null) { seen = new IdentityHashMap<Object, Object>(); }
     seen.put(o, null);
+  }
+
+  /**
+   * Converts a Java bean object into a JS object constructor by reflectively
+   * examining its public fields and getter methods.
+   */
+  private boolean beanToJS(Object o) throws IOException {
+    // CharSequences should be treated as strings, and enum values should
+    // not have fields serialized since they are better identified by name
+    // or ordinal.
+    if (o instanceof CharSequence || o instanceof Enum) { return false; }
+    Class<?> c = o.getClass();
+    ClassSchema schema = ClassSchema.forClass(c);
+    if (schema == null) { return false; }
+    markSeen(o);
+    char pre = '{';
+    for (Field f : schema.fields) {
+      String name = f.getName();
+      Object v;
+      try {
+        v = f.get(o);
+      } catch (IllegalAccessException e) {
+        // Should not occur since we checked public-ness.
+        // TODO: does the declaring class and any containing class also have
+        // to be public?
+        throw (AssertionError)
+            new AssertionError(name + " of " + o.getClass()).initCause(e);
+      }
+      out.write(pre);
+      pre = ',';
+      out.write('\'');
+      out.write(name);
+      out.write("\':");
+      escape(v, false);
+    }
+    for (int i = 0, n = schema.getters.length; i < n; ++i) {
+      Method m = schema.getters[i];
+      String name = schema.getterFieldNames[i];
+      Object v = null;
+      try {
+        v = m.invoke(o);
+      } catch (IllegalAccessException e) {
+        // TODO: same caveats to check as above.
+        throw (AssertionError)
+            new AssertionError(name + " of " + o.getClass()).initCause(e);
+      } catch (InvocationTargetException e) {
+        // Getter failed.  Treat as a non-existant property.
+        continue;
+      }
+      out.write(pre);
+      pre = ',';
+      out.write('\'');
+      out.write(name);
+      out.write("\':");
+      escape(v, false);
+    }
+    if (pre == '{') {
+      out.write("{}");
+    } else {
+      out.write('}');
+    }
+    return true;
+  }
+}
+
+/**
+ * Collects reflective information about the properties of a class that can
+ * be used to turn it into a JS representation.
+ */
+class ClassSchema {
+  final String className;
+  final Field[] fields;
+  final Method[] getters;
+  final String[] getterFieldNames;
+
+  private static final ClassSchema NOT_A_BEAN = new ClassSchema();
+  private static final Map<Class<?>, ClassSchema> CLASS_TO_SCHEMA
+      = Collections.synchronizedMap(
+          new IdentityHashMap<Class<?>, ClassSchema>());
+  static {
+    CLASS_TO_SCHEMA.put(Class.class, NOT_A_BEAN);
+    try {
+      CLASS_TO_SCHEMA.put(
+          GregorianCalendar.class,
+          new ClassSchema(GregorianCalendar.class,
+                          new String[0],
+                          new String[] { "getClass", "getTimeInMillis" }));
+      CLASS_TO_SCHEMA.put(
+          Date.class,
+          new ClassSchema(Date.class,
+                          new String[0],
+                          new String[] { "getClass", "getTime" }));
+      CLASS_TO_SCHEMA.put(
+          java.sql.Date.class,
+          new ClassSchema(Date.class,
+                          new String[0],
+                          new String[] { "getClass", "getTime" }));
+    } catch (NoSuchFieldException e) {
+      throw new AssertionError(e);
+    } catch (NoSuchMethodException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  static ClassSchema forClass(Class<?> c) {
+    ClassSchema s = CLASS_TO_SCHEMA.get(c);
+    if (s == null) {
+      s = new ClassSchema(c);
+      if (s.fields.length == 0 && s.getters.length == 1 /* getClass */) {
+        s = NOT_A_BEAN;
+      }
+      CLASS_TO_SCHEMA.put(c, s);
+    }
+    return s == NOT_A_BEAN ? null : s;
+  }
+
+  private ClassSchema() {
+    this.className = null;
+    this.fields = null;
+    this.getters = null;
+    this.getterFieldNames = null;
+  }
+
+  private ClassSchema(Class<?> c, String[] fieldNames, String[] methodNames)
+      throws NoSuchFieldException, NoSuchMethodException {
+    this.className = c.getName();
+    this.fields = new Field[fieldNames.length];
+    for (int i = 0; i < fieldNames.length; ++i) {
+      fields[i] = c.getField(fieldNames[i]);
+    }
+    this.getterFieldNames = new String[methodNames.length];
+    this.getters = new Method[methodNames.length];
+    Class<?>[] none = new Class<?>[0];
+    for (int i = 0; i < methodNames.length; ++i) {
+      String name = methodNames[i];
+      if (name.startsWith("get")) {
+        getterFieldNames[i] = Character.toLowerCase(name.charAt(3))
+             + name.substring(4);
+      } else {
+        getterFieldNames[i] = name;
+      }
+      getters[i] = c.getMethod(name, none);
+    }
+  }
+
+  private ClassSchema(Class<?> c) {
+    this.className = c.getName();
+    List<Field> fields = new ArrayList<Field>();
+    List<Method> getters = new ArrayList<Method>();
+    Set<String> names = new HashSet<String>();
+    for (Field f : c.getFields()) {
+      int mods = f.getModifiers();
+      if (Modifier.isPublic(mods) && !Modifier.isStatic(mods)
+          && !Modifier.isVolatile(mods) && names.add(f.getName())) {
+        fields.add(f);
+      }
+    }
+    for (Method m : c.getMethods()) {
+      if (Void.TYPE.equals(m.getReturnType())) { continue; }
+      String name = m.getName();
+      if (!(name.startsWith("get") && m.getParameterTypes().length == 0)) {
+        continue;
+      }
+      int mods = m.getModifiers();
+      if (!(Modifier.isPublic(mods) && !Modifier.isStatic(mods))) {
+        continue;
+      }
+      if (names.add(methodNameToFieldName(name))) {
+        getters.add(m);
+      }
+    }
+    this.fields = fields.toArray(new Field[fields.size()]);
+    // TODO: Create one comparator for members and make it singleton.
+    // TODO: Find a JSR305 annotation or something similar to exempt fields
+    // from serialization.  Maybe JPA @javax.persistence.Transient.
+    Arrays.sort(this.fields, new Comparator<Field>() {
+        public int compare(Field a, Field b) {
+          return a.getName().compareTo(b.getName());
+        }
+      });
+    this.getters = getters.toArray(new Method[getters.size()]);
+    Arrays.sort(this.getters, new Comparator<Method>() {
+        public int compare(Method a, Method b) {
+          return a.getName().compareTo(b.getName());
+        }
+      });
+    this.getterFieldNames = new String[getters.size()];
+    for (int i = 0; i < this.getters.length; ++i) {
+      this.getterFieldNames[i] = methodNameToFieldName(
+          this.getters[i].getName());
+    }
+  }
+
+  static String methodNameToFieldName(String name) {
+    if (name.startsWith("get")) {
+      // getFoo -> foo
+      return Character.toLowerCase(name.charAt(3)) + name.substring(4);
+    }
+    return name;
   }
 }
 """  # Fix emacs syntax highlighting "

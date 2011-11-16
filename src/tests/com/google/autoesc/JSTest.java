@@ -15,10 +15,15 @@
 package com.google.autoesc;
 
 import java.io.StringWriter;
+import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.TimeZone;
 
 import junit.framework.TestCase;
 
@@ -184,6 +189,39 @@ public final class JSTest extends TestCase {
     assertEscapedValue("</script", "'\\x3c\\/script'");
     // or "'\\ud834\\udd1E'"
     assertEscapedValue("\ud834\udd1e", "'\ud834\udd1e'");
+    assertEscapedValue(
+        new PointBean(-15, 36),
+        "{'x':-15,'y':36,'class':'"
+        + PointBean.class + "','distanceFromOrigin':39.0}");
+    assertEscapedValue(
+        new NotABean(),
+        "'not-a-\\x27bean\\x27'");
+    assertEscapedValue(
+        new StringBuilder("foo"),
+        "'foo'");
+    // Don't treate enums as beans.
+    assertEscapedValue(
+        SimpleEnum.BAR,
+        "'BAR'");
+    Calendar c = new GregorianCalendar();
+    c.setTimeInMillis(0);
+    c.setTimeZone(TimeZone.getTimeZone("UTC"));
+    assertEscapedValue(
+        c, "{'class':'class java.util.GregorianCalendar','timeInMillis':0}");
+    assertEscapedValue(
+        new Date(0), "{'class':'class java.util.Date','time':0}");
+    assertEscapedValue(
+        new BigDecimal("12345.6789"),
+        " 12345.6789 ");
+    assertEscapedValue(
+        new CyclicBean(),
+        "{'class':'" + CyclicBean.class + "','foo':'bar','self':null}");
+    assertEscapedValue(
+        new NonPublicBean(42),
+        "{'x':42,'class':'" + NonPublicBean.class + "','y':[43,-41]}");
+    assertEscapedValue(
+        new BrokenBean(),
+        "{'x':17,'class':'" + BrokenBean.class + "'}");
   }
 
   private String jsStr(String s) throws Exception {
@@ -336,4 +374,52 @@ public final class JSTest extends TestCase {
     assertFalse(JS.isRegexpPrecederKeyword("", 0, 0));
     assertFalse(JS.isRegexpPrecederKeyword("TYPEOF", 0, 6));
   }
+
+  public class PointBean {
+    public final int x, y;
+
+    PointBean(int x, int y) {
+      this.x = x; this.y = y;
+    }
+    public void getNotReallyAGetter() throws Exception {
+      throw new Exception("not really a getter");
+    }
+    public double getDistanceFromOrigin() {
+      return Math.sqrt(x*x + y*y);
+    }
+    @SuppressWarnings("unused")
+    private int getHiddenThirdDimension() { return 0; }
+  }
+
+  public static class NotABean {
+    @Override public String toString() { return "not-a-'bean'"; }
+  }
+
+  public static enum SimpleEnum {
+    FOO,
+    BAR,
+    BAZ,
+    ;
+  }
+
+  public static class CyclicBean {
+    public String getFoo() { return "bar"; }
+    public CyclicBean getSelf() { return this; }
+  }
+
+  class NonPublicBean {
+    public int x;
+
+    NonPublicBean(int x) { this.x = x; }
+
+    public int[] getY() { return new int[] { x + 1, 1 - x }; }
+  }
+
+  static class BrokenBean {
+    public int x = 17;
+
+    public int getX() { return -x; }
+    public int getFailure() { throw new RuntimeException("no int for you"); }
+  }
 }
+
