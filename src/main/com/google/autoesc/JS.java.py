@@ -484,7 +484,7 @@ class JSValueEscaper {
       out.write(pre);
       pre = ',';
       out.write('\'');
-      out.write(name);
+      out.write(name);  // Name is a valid JavaScript identifier.
       out.write("\':");
       escape(v, false);
     }
