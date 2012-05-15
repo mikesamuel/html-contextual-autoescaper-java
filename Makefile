@@ -99,6 +99,7 @@ out/javadoc.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
 	&& touch out/javadoc.tstamp \
 	&& echo javadoc generated
 
+jars: out/autoesc.jar out/autoesc-src.jar
 out/autoesc.jar: out/classes.tstamp
 	@echo packing jar
 	@cd out; \
@@ -106,3 +107,10 @@ out/autoesc.jar: out/classes.tstamp
 	  egrep -v 'Tests?([^.]+)?\.class' | \
 	  xargs jar cf autoesc.jar \
 	&& echo packaged jar
+out/autoesc-src.jar: out/genfiles.tstamp src/main/com/google/autoesc/*.java
+	@echo packing src jar
+	@rm -rf $@ out/combined-src && \
+	mkdir out/combined-src && \
+	cp -R src/{main,tests}/com out/genfiles/src/main/com out/combined-src/ && \
+	find out/combined-src/ -name '.*' -exec rm '{}' \; && \
+	jar cMf $@ -C out/combined-src com
