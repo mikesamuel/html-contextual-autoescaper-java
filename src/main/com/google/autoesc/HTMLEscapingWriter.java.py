@@ -469,6 +469,7 @@ public class HTMLEscapingWriter extends Writer {
           return Escaper.ESCAPE_HTML;
         }
       case Context.State.RCDATA:
+      case Context.State.CDATA:
         return Escaper.ESCAPE_RCDATA;
       case Context.State.Attr:
         return Escaper.ESCAPE_HTML_ATTR;
@@ -631,6 +632,7 @@ public class HTMLEscapingWriter extends Writer {
       case Context.State.BeforeValue: return tBeforeValue(s, off, end);
       case Context.State.HTMLCmt:     return tHTMLCmt(s, off, end);
       case Context.State.RCDATA:      return tRCDATA(s, off, end);
+      case Context.State.CDATA:       return tCDATA(s, off, end);
       case Context.State.Attr:        return tAttr(s, off, end);
       case Context.State.URL:         return tURL(s, off, end);
       case Context.State.JS:          return tJS(s, off, end);
@@ -664,11 +666,16 @@ public class HTMLEscapingWriter extends Writer {
         }
         return end;
       }
-      if (lt+4 <= end && s.charAt(lt+1) == '!' && s.charAt(lt+2) == '-'
-          && s.charAt(lt+3) == '-') {
-        context = state(context, Context.State.HTMLCmt);
-        emit(s, off, lt);  // elide <!--
-        return lt+4;
+      if (lt+4 <= end && s.charAt(lt+1) == '!') {
+        if (s.charAt(lt+2) == '-' && s.charAt(lt+3) == '-') {
+          context = state(context, Context.State.HTMLCmt);
+          emit(s, off, lt);  // elide <!--
+          return lt+4;
+        } else if (CharsUtil.startsWith(s, lt+2, end, "[CDATA[")) {
+          context = state(context, Context.State.CDATA);
+          emit(s, off, lt);
+          return lt+9;  // elide <![CDATA[
+        }
       }
       int tagStart = lt + 1;
       boolean isEndTag = false;
@@ -1022,6 +1029,42 @@ public class HTMLEscapingWriter extends Writer {
       return i;
     }
     emit(s, off, end);
+    return end;
+  }
+
+  /**
+   * tCDATA is the context transition function for the inside of a 
+   * {@code <![CDATA[[...]]>} section.
+   */
+  private int tCDATA(String s, int off, int end) throws IOException {
+    int pos = off;
+    for (int i = off; i < end; ++i) {
+      String repl;
+      // Normalize HTML Text special characters.
+      switch (s.charAt(i)) {
+        case '>':
+          // End the CDATA section if we see ]]>.
+          if (i - 2 >= off && ']' == s.charAt(i-1) && ']' == s.charAt(i-2)) {
+            emit(s, pos, i-2);
+            // Elide the ]]>
+            context = Context.TEXT;
+            return i+1;
+          }
+          repl = "&gt;";
+          break;
+        case '&':
+          repl = "&amp;";
+          break;
+        case '<':
+          repl = "&lt;";
+          break;
+        default: continue;
+      }
+      emit(s, pos, i);
+      out.write(repl);
+      pos = i + 1;
+    }
+    emit(s, pos, end);
     return end;
   }
 

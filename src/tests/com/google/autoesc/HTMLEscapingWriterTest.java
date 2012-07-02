@@ -564,6 +564,18 @@ public class HTMLEscapingWriterTest extends TestCase {
         "<svg:a svg:onclick=\"",
         "JS DoubleQuote"
         );
+    assertWritten(
+        "Foo <![CDATA[bar <baz>]]> Boo",
+        "Text",
+        "Foo bar &lt;baz&gt; Boo");
+    assertWritten(
+        "Foo <![CDATA[bar ]]",
+        "CDATA",
+        "Foo bar ]]");
+    assertWritten(
+        "Foo <![CDATA[bar <baz>]]> Boo",
+        "Text",
+        "Foo bar &lt;baz&gt; Boo");
   }
 
   @SuppressWarnings("serial")
@@ -1161,6 +1173,11 @@ public class HTMLEscapingWriterTest extends TestCase {
             "typed HTML in RCDATA",
             "<textarea>{{W}}</textarea>",
             "<textarea>&iexcl;&lt;b class=&#34;foo&#34;&gt;Hello&lt;/b&gt;, &lt;textarea&gt;O&#39;World&lt;/textarea&gt;!</textarea>"
+        );
+    assertTemplateOutput(
+            "typed HTML in CDATA",
+            "<![CDATA[{{W}}]]>",
+            "&iexcl;&lt;b class=&#34;foo&#34;&gt;Hello&lt;/b&gt;, &lt;textarea&gt;O&#39;World&lt;/textarea&gt;!"
         );
     assertTemplateOutput(
             "No tag injection",
