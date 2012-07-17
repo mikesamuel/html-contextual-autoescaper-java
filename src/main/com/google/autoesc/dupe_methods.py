@@ -5,7 +5,7 @@ import re
 # Methods end with a curly bracket indented by two spaces.
 signature_and_body = (
   r'(?s)'  # . matches newlines.
-  # Signature like (String, int, off).
+  # Signature like (String s, int off, int end).
   # Portion of sig before "String" in group 1 incl. return type name and flags.
   # Portion of sig after "String" in group 2 incl. extra params and exceptions.
   # Body of method in group 3.
