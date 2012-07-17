@@ -34,17 +34,17 @@ public enum ContentType {
    */
   CSS,
   /**
-   * HTML encapsulates a known safe HTML document fragment.
-   * It should not be used for HTML from a third-party, or HTML with
+   * Markup encapsulates a known safe HTML or XML document fragment.
+   * It should not be used for HTML or XML from a third-party, or with
    * unclosed tags or comments. The outputs of a sound HTML sanitizer
    * and a template escaped by this package are fine for use with HTML.
    */
-  HTML,
+  Markup,
   /**
-   * HTMLAttr encapsulates an HTML attribute from a trusted source,
+   * Attr encapsulates an HTML or XML attribute from a trusted source,
    * for example: {@code  dir="ltr"}.
    */
-  HTMLAttr,
+  Attr,
   /**
    * JS encapsulates a known safe EcmaScript5 Expression, or example,
    * {@code (x + y * z())}.

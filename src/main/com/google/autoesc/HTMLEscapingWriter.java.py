@@ -4,6 +4,8 @@
 # parameters (String s, int off, int end) and generating a copy that
 # takes (char[] s, int off, int end).
 
+# Fix emacs syntax highlighting "
+
 src = r"""
 // Copyright (C) 2011 Google Inc.
 //
@@ -269,8 +271,9 @@ public class HTMLEscapingWriter extends Writer {
     case ELIDE: return;
     case ESCAPE_CSS: CSS.escapeStrOnto(o, out); break;
     case ESCAPE_HTML: HTML.escapeOnto(o, out); break;
+    case ESCAPE_XML: XML.escapeOnto(o, out); break;
     case ESCAPE_HTML_ATTR:
-      String safe = ContentType.HTML.derefSafeContent(o);
+      String safe = ContentType.Markup.derefSafeContent(o);
       if (safe == null) {
         attrValueEscaper().escapeOnto(o, underlying);
       } else {
@@ -286,6 +289,7 @@ public class HTMLEscapingWriter extends Writer {
     case ESCAPE_JS_REGEXP: JS.escapeRegexpOnto(o, out); break;
     case ESCAPE_JS_STRING: JS.escapeStrOnto(o, out); break;
     case ESCAPE_JS_VALUE: JS.escapeValueOnto(o, out); break;
+    case ESCAPE_CDATA: XML.escapeCDATAOnto(o, out); break;
     case ESCAPE_RCDATA: HTML.escapeRCDATAOnto(o, out); break;
     case ESCAPE_URL: URL.escapeOnto(false, o, out); break;
     case FILTER_CSS_VALUE: CSS.filterValueOnto(o, out); break;
@@ -314,7 +318,9 @@ public class HTMLEscapingWriter extends Writer {
       }
       break;
     case NORMALIZE_HTML: HTML.normalizeOnto(o, out); break;
+    case NORMALIZE_XML: XML.normalizeOnto(o, out); break;
     case NORMALIZE_URL: URL.escapeOnto(true, o, out); break;
+    case ONE_SPACE: out.write(' '); break;
     }
   }
 
@@ -334,9 +340,11 @@ public class HTMLEscapingWriter extends Writer {
     case ESCAPE_HTML_ATTR:
       attrValueEscaper().escapeOnto(s, off, end, underlying);
       break;
+    case ESCAPE_XML: XML.escapeOnto(s, off, end, out); break;
     case ESCAPE_JS_REGEXP: JS.escapeRegexpOnto(s, off, end, out); break;
     case ESCAPE_JS_STRING: JS.escapeStrOnto(s, off, end, out); break;
     case ESCAPE_JS_VALUE: JS.escapeValueOnto(s, off, end, out); break;
+    case ESCAPE_CDATA: XML.escapeCDATAOnto(s, off, end, out); break;
     case ESCAPE_RCDATA: HTML.escapeOnto(s, off, end, out); break;
     case ESCAPE_URL: URL.escapeOnto(s, off, end, false, out); break;
     case FILTER_CSS_VALUE: CSS.filterValueOnto(s, off, end, out); break;
@@ -368,7 +376,9 @@ public class HTMLEscapingWriter extends Writer {
       }
       break;
     case NORMALIZE_HTML: HTML.normalizeOnto(s, off, end, out); break;
+    case NORMALIZE_XML: XML.normalizeOnto(s, off, end, out); break;
     case NORMALIZE_URL: URL.escapeOnto(s, off, end, true, out); break;
+    case ONE_SPACE: out.write(' '); break;
     }
   }
 
@@ -468,22 +478,44 @@ public class HTMLEscapingWriter extends Writer {
         } else {
           return Escaper.ESCAPE_HTML;
         }
-      case Context.State.RCDATA:
+      case Context.State.XML:
+        if (soft) {
+          return Escaper.NORMALIZE_XML;
+        } else {
+          return Escaper.ESCAPE_XML;
+        }
       case Context.State.CDATA:
+        if (element(context) == Context.Element.XML) {
+          return Escaper.ESCAPE_CDATA;
+        } else {
+          // Since we're normalizing content to a text node, treat as
+          // RCDATA which correctly strips tags in known-safe content.
+          return Escaper.ESCAPE_RCDATA;
+        }
+      case Context.State.RCDATA:
         return Escaper.ESCAPE_RCDATA;
       case Context.State.Attr:
         return Escaper.ESCAPE_HTML_ATTR;
       case Context.State.AttrName: case Context.State.TagName:
         return Escaper.FILTER_NAME_ONTO;
-      default:
-        if (Context.State.isComment(context)) {
-          // Do nothing.  In writeSafe, we elide comment contents, so skip any
-          // value that is written into a comment.
-          return Escaper.ELIDE;
-        } else {
-          throw new TemplateException(
-              "unexpected state " + Context.toString(context));
+      case Context.State.JSBlockCmt:
+      case Context.State.JSLineCmt:
+      case Context.State.CSSBlockCmt:
+      case Context.State.CSSLineCmt:
+        // Do nothing.  In writeSafe, we elide comment contents, so skip any
+        // value that is written into a comment.
+        return Escaper.ELIDE;
+      case Context.State.MarkupCmt:
+        if (element(context) == Context.Element.XML) {
+          // Prevent dashes inside a comment from merging into a -- sequence
+          // which can legally contribute to the early close of a comment.
+          return Escaper.ONE_SPACE;
         }
+        // Comments in HTML are elided as in JS or CSS.
+        return Escaper.ELIDE;
+      default:
+        throw new TemplateException(
+            "unexpected state " + Context.toString(context));
     }
   }
 
@@ -630,7 +662,7 @@ public class HTMLEscapingWriter extends Writer {
       case Context.State.AttrName:    return tAttrName(s, off, end);
       case Context.State.AfterName:   return tAfterName(s, off, end);
       case Context.State.BeforeValue: return tBeforeValue(s, off, end);
-      case Context.State.HTMLCmt:     return tHTMLCmt(s, off, end);
+      case Context.State.MarkupCmt:   return tMarkupCmt(s, off, end);
       case Context.State.RCDATA:      return tRCDATA(s, off, end);
       case Context.State.CDATA:       return tCDATA(s, off, end);
       case Context.State.Attr:        return tAttr(s, off, end);
@@ -649,6 +681,7 @@ public class HTMLEscapingWriter extends Writer {
       case Context.State.CSSURL:      return tCSSStr(s, off, end);
       case Context.State.CSSBlockCmt: return tBlockCmt(s, off, end);
       case Context.State.CSSLineCmt:  return tLineCmt(s, off, end);
+      case Context.State.XML:         return tXML(s, off, end);
     }
     throw new IllegalStateException(Context.toString(context));
   }
@@ -666,45 +699,66 @@ public class HTMLEscapingWriter extends Writer {
         }
         return end;
       }
-      if (lt+4 <= end && s.charAt(lt+1) == '!') {
-        if (s.charAt(lt+2) == '-' && s.charAt(lt+3) == '-') {
-          context = state(context, Context.State.HTMLCmt);
-          emit(s, off, lt);  // elide <!--
-          return lt+4;
-        } else if (CharsUtil.startsWith(s, lt+2, end, "[CDATA[")) {
-          context = state(context, Context.State.CDATA);
-          emit(s, off, lt);
-          return lt+9;  // elide <![CDATA[
+      char next = s.charAt(lt+1);
+      boolean isDoctype = false;
+      if (next == '!') {
+        if (lt+4 <= end) {
+          if (s.charAt(lt+2) == '-' && s.charAt(lt+3) == '-') {
+            context = state(context, Context.State.MarkupCmt);
+            emit(s, off, lt);  // elide <!--
+            return lt+4;
+          } else if (CharsUtil.startsWith(s, lt+2, end, "[CDATA[")) {
+            context = state(context, Context.State.CDATA);
+            emit(s, off, lt);
+            return lt+9;  // elide <![CDATA[
+          }
+          isDoctype = CharsUtil.startsWithIgnoreCase(s, lt+1, end, "!doctype");
+        }
+      } else if (next == '?') {
+        // http://www.w3.org/TR/2000/REC-xml-20001006#sec-prolog-dtd
+        // XMLDecl ::= '<?xml' VersionInfo EncodingDecl? SDDecl? S? '?>'
+        if (CharsUtil.startsWith(s, lt+2, end, "xml")) {
+          // We found an XML version declaration.
+          context = Context.XML;
+          emit(s, off, lt+5);
+          return lt+5;
+        }
+      } else {
+        int tagStart = lt + 1;
+        boolean isEndTag = false;
+        if (s.charAt(tagStart) == '/') {
+          if (tagStart+1 == end) {
+            emit(s, off, lt);
+            out.write("&lt;/");
+            return end;
+          }
+          isEndTag = true;
+          tagStart++;
+        }
+        int tagEnd = eatTagName(s, tagStart, end);
+        if (tagStart != tagEnd) {
+          int el = isEndTag
+            ? Context.Element.None : classifyTagName(s, tagStart, tagEnd);
+          // We have found an HTML tag.
+          context = element(state(context, Context.State.TagName), el);
+          emit(s, off, isStrippingTags ? lt : tagEnd);
+          return tagEnd;
         }
       }
-      int tagStart = lt + 1;
-      boolean isEndTag = false;
-      if (s.charAt(tagStart) == '/') {
-        if (tagStart+1 == end) {
-          emit(s, off, lt);
-          out.write("&lt;/");
-          return end;
-        }
-        isEndTag = true;
-        tagStart++;
-      }
-      int tagEnd = eatTagName(s, tagStart, end);
-      if (tagStart != tagEnd) {
-        int el = isEndTag
-          ? Context.Element.None : classifyTagName(s, tagStart, tagEnd);
-        // We have found an HTML tag.
-        context = element(state(context, Context.State.TagName), el);
-        emit(s, off, isStrippingTags ? lt : tagEnd);
-        return tagEnd;
-      }
-      if (isStrippingTags
-          || !CharsUtil.startsWithIgnoreCase(s, lt+1, end, "!doctype")) {
+      if (isStrippingTags || !isDoctype) {
         emit(s, off, lt);
         out.write("&lt;");
         off = lt + 1;
       } else {
         emit(s, off, lt + 9);
         off = lt + 9;
+        // Switch to XML mode if we saw a DOCTYPE for an XML kind that cannot
+        // appear as foreign XML content in an HTML5 document.
+        int state = Doctype.classify(s, off, end);
+        if (state != Context.State.Text) {
+          context = state;
+          return off;
+        }
       }
     }
   }
@@ -838,18 +892,22 @@ public class HTMLEscapingWriter extends Writer {
     if (s.charAt(i) == '>') {
       emit(s, off, i+1);
       int state;
-      if (!isStrippingTags) {
-        switch (element(context)) {
-          case Context.Element.Script: state = Context.State.JS; break;
-          case Context.Element.Style: state = Context.State.CSS; break;
-          case Context.Element.None: state = Context.State.Text; break;
-          default: state = Context.State.RCDATA; break;
-        }
+      int element = element(context);
+      if (element == Context.Element.None) {
+        state = Context.State.Text;
+      } else if (element == Context.Element.XML) {
+        state = Context.State.XML;
+        context = Context.XML;  // Strip element.
       } else {
+        state = Context.State.RCDATA;
         // When stripping tags, treat all content as RCDATA to avoid wasting
         // time parsing CSS and JS tokens that are just going to be stripped.
-        state = element(context) == Context.Element.None
-            ? Context.State.Text : Context.State.RCDATA;
+        if (!isStrippingTags) {
+          switch (element) {
+            case Context.Element.Script: state = Context.State.JS; break;
+            case Context.Element.Style:  state = Context.State.CSS; break;
+          }
+        }
       }
       context = state(context, state);
       return i+1;
@@ -978,15 +1036,25 @@ public class HTMLEscapingWriter extends Writer {
     return i;
   }
 
-  /** tHTMLCmt is the context transition function for stateHTMLCmt. */
-  private int tHTMLCmt(String s, int off, int end) {
+  /** tMarkupCmt is the context transition function for State.MarkupCmt. */
+  private int tMarkupCmt(String s, int off, int end) throws IOException {
+    boolean isXML = element(context) == Context.Element.XML;
     int i = CharsUtil.findHtmlCommentEnd(s, off, end);
     if (i != -1) {
-      // Do not emit.
-      context = Context.TEXT;
+      if (isXML) {
+        emit(s, off, i+3);
+        context = Context.XML;
+      } else {
+        // Do not emit.
+        context = Context.TEXT;
+      }
       return i+3;
     }
-    // Do not emit.
+    if (isXML) {
+      emit(s, off, end);
+    } else {
+      // Do not emit.
+    }
     return end;
   }
 
@@ -1034,9 +1102,11 @@ public class HTMLEscapingWriter extends Writer {
 
   /**
    * tCDATA is the context transition function for the inside of a 
-   * {@code <![CDATA[[...]]>} section.
+   * {@code <![CDATA[[...]]>} section that appears in an HTML or XML document
+   * whether inside a foreign XML element or not.
    */
   private int tCDATA(String s, int off, int end) throws IOException {
+    boolean isXML = element(context) == Context.Element.XML;
     int pos = off;
     for (int i = off; i < end; ++i) {
       String repl;
@@ -1045,9 +1115,14 @@ public class HTMLEscapingWriter extends Writer {
         case '>':
           // End the CDATA section if we see ]]>.
           if (i - 2 >= off && ']' == s.charAt(i-1) && ']' == s.charAt(i-2)) {
-            emit(s, pos, i-2);
-            // Elide the ]]>
-            context = Context.TEXT;
+            if (isXML) {
+              emit(s, pos, i+1);
+              context = Context.XML;
+            } else {
+              emit(s, pos, i-2);
+              // Elide the ]]>
+              context = Context.TEXT;
+            }
             return i+1;
           }
           repl = "&gt;";
@@ -1060,9 +1135,11 @@ public class HTMLEscapingWriter extends Writer {
           break;
         default: continue;
       }
-      emit(s, pos, i);
-      out.write(repl);
-      pos = i + 1;
+      if (!isXML) {
+        emit(s, pos, i);
+        out.write(repl);
+        pos = i + 1;
+      }
     }
     emit(s, pos, end);
     return end;
@@ -1424,6 +1501,56 @@ public class HTMLEscapingWriter extends Writer {
       }
       emit(s, off, i+1);
       off = i + 1;
+    }
+  }
+
+  /** tXML is the context transition function for the XML text node state. */
+  private int tXML(String s, int off, int end) throws IOException {
+    while (true) {
+      int lt = off;
+      while (lt < end && s.charAt(lt) != '<') { ++lt; }
+      if (lt+1 >= end) {
+        // At end or not found.
+        emit(s, off, lt);
+        if (lt < end) {
+          out.write("&lt;");
+        }
+        return end;
+      }
+      if (lt+4 <= end && s.charAt(lt+1) == '!') {
+        if (s.charAt(lt+2) == '-' && s.charAt(lt+3) == '-') {
+          context = element(
+              state(context, Context.State.MarkupCmt),
+              Context.Element.XML);
+          emit(s, off, lt+4);
+          return lt+4;
+        } else if (CharsUtil.startsWith(s, lt+2, end, "[CDATA[")) {
+          context = element(
+              state(context, Context.State.CDATA),
+              Context.Element.XML);
+          emit(s, off, lt+9);
+          return lt+9;
+        }
+      }
+      int tagStart = lt + 1;
+      if (s.charAt(tagStart) == '/') {
+        if (tagStart+1 == end) {
+          emit(s, off, lt);
+          out.write("&lt;/");
+          return end;
+        }
+        tagStart++;
+      }
+      int tagEnd = eatTagName(s, tagStart, end);
+      if (tagStart != tagEnd) {
+        // We have found an XML tag.
+        context = element(
+          state(context, Context.State.TagName), Context.Element.XML);
+        emit(s, off, isStrippingTags ? lt : tagEnd);
+        return tagEnd;
+      }
+      emit(s, off, lt + 1);
+      off = lt + 1;
     }
   }
 

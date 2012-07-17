@@ -403,17 +403,17 @@ public class HTMLEscapingWriterTest extends TestCase {
         );
     assertWritten(
         "<!-- foo",
-        "HTMLCmt",
+        "MarkupCmt",
         ""
         );
     assertWritten(
         "<!-->",
-        "HTMLCmt",
+        "MarkupCmt",
         ""
         );
     assertWritten(
         "<!--->",
-        "HTMLCmt",
+        "MarkupCmt",
         ""
         );
     assertWritten(
@@ -460,7 +460,7 @@ public class HTMLEscapingWriterTest extends TestCase {
         );
     assertWritten(
         "<script>foo</script><!--",
-        "HTMLCmt",
+        "MarkupCmt",
         "<script>foo</script>"
         );
     assertWritten(
@@ -576,6 +576,42 @@ public class HTMLEscapingWriterTest extends TestCase {
         "Foo <![CDATA[bar <baz>]]> Boo",
         "Text",
         "Foo bar &lt;baz&gt; Boo");
+    assertWritten(
+        "<?xml version=\"1.0\" charset=\"UTF-8\">",
+        "XML");
+    assertWritten(
+        " <?xml version=\"1.0\">",
+        "XML");
+    assertWritten(
+        " <?xml version=\"1.0\"> <foo> <bar>",
+        "XML");
+    assertWritten(
+        " <!DOCTYPE html>",
+        "Text");
+    // Use HTML mode for SVG since SVG is a subset of HTML5.
+    assertWritten(
+        "<!DOCTYPE svg:svg PUBLIC\n"
+        + " \"-//W3C//DTD XHTML 1.1 plus MathML 2.0 plus SVG 1.1//EN\"\n"
+        + " \"http://www.w3.org/2002/04/xhtml-math-svg/xhtml-math-svg.dtd\">\n"
+        + "<svg />",
+        "Text");
+    assertWritten(
+        " <!DOCTYPE\trss PUBLIC\n"
+        + "\"-//Netscape Communications//DTD RSS 0.91//EN\"\n"
+        + " \"http://my.netscape.com/publish/formats/rss-0.91.dtd\">\n"
+        + "<rss/>",
+        "XML");
+    // Do not elide comments in XML.
+    assertWritten("<?xml version=\"1.0\"> <!-- A comment ", "MarkupCmt XML");
+    assertWritten("<?xml version=\"1.0\"> <!-- A comment --> <hello/>", "XML");
+    // Do not elide CDATA sections in XML.
+    assertWritten("<?xml version=\"1.0\"> <![CDATA[...]]> ", "XML");
+    assertWritten("<?xml version=\"1.0\"> <![CDATA[ raw text ", "CDATA XML");
+    // Do not mangle processing instructions in XML.
+    assertWritten(
+        "<?xml version=\"1.0\">"
+        + "<?stylesheet type=\"text/xsl\" href=\"style.xsl\"?>",
+        "XML");
   }
 
   @SuppressWarnings("serial")
@@ -593,7 +629,7 @@ public class HTMLEscapingWriterTest extends TestCase {
     this.put("M", new GoodMarshaler());
     this.put("W", new SafeContentString(
         "&iexcl;<b class=\"foo\">Hello</b>,"
-        + " <textarea>O'World</textarea>!", ContentType.HTML));
+        + " <textarea>O'World</textarea>!", ContentType.Markup));
     this.put("SU", new SafeContentString("%3cCincinatti%3e", ContentType.URL));
   }};
 
@@ -681,11 +717,12 @@ public class HTMLEscapingWriterTest extends TestCase {
         }
         if (value instanceof String) {
           String svalue = (String) value;
+          char[] cvalue = svalue.toCharArray();
           int vlen = svalue.length();
           svalue = "\"'" + svalue + "'";
           char[] valueChars = svalue.toCharArray();
           ws[0].write(value);
-          ws[1].write(value);
+          ws[1].write((Object) cvalue);
           ws[2].write(svalue, 2, vlen);
           ws[3].write(svalue, 2, vlen);
           ws[4].write(valueChars, 2, vlen);
@@ -1296,6 +1333,24 @@ public class HTMLEscapingWriterTest extends TestCase {
             "<{{\"script\"}}>{{\"doEvil()\"}}</{{\"script\"}}>",
             "&lt;script>doEvil()&lt;/script>"
         );
+    assertTemplateOutput(
+            "cdata section preserved 1",
+            "<?xml version=\"1.0\"><x><![CDATA[{{\"foo\"}}]]></x>",
+            "<?xml version=\"1.0\"><x><![CDATA[foo]]></x>");
+    assertTemplateOutput(
+            "cdata section preserved 2",
+            "<?xml version=\"1.0\"><x><![CDATA[{{\"I <3 Ponies!\"}}]]></x>",
+            "<?xml version=\"1.0\"><x><![CDATA[I <3 Ponies!]]></x>");
+    assertTemplateOutput(
+            "cdata section preserved 2",
+            "<?xml version=\"1.0\"><x><![CDATA[{{\"Hi]]><!evil>\"}}]]></x>",
+            "<?xml version=\"1.0\">"
+            + "<x><![CDATA[Hi]]]]><![CDATA[><!evil>]]></x>");
+    assertTemplateOutput(
+            "XML comment preserved",
+            "<?xml version=\"1.0\"><x><!-- -{{\"--><evil>\"}}- --></x>",
+            "<?xml version=\"1.0\">"
+            + "<x><!-- - - --></x>");
   }
 
   private void assertErrorMsg(String html, String error) throws Exception {

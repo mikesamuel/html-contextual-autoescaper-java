@@ -30,80 +30,106 @@ final class Context {
   private Context() { /* uninstantiable */ }
 
   /** Context where regular HTML text nodes and tags can appear. */
-  static final int TEXT = 0;
+  static final int TEXT = State.Text;
+
+  /** Context where regular XML text nodes and tags can appear. */
+  static final int XML = State.XML;
 
   /** Context inside the body of a generic tag. */
   static final int GENERIC_TAG = State.Tag;
 
+  private static final String[] STATE_NAMES = new String[State.COUNT];
+  static {
+    STATE_NAMES[State.Text >> State.SHIFT] = "Text";
+    STATE_NAMES[State.TagName >> State.SHIFT] = "TagName";
+    STATE_NAMES[State.Tag >> State.SHIFT] = "Tag";
+    STATE_NAMES[State.AttrName >> State.SHIFT] = "AttrName";
+    STATE_NAMES[State.AfterName >> State.SHIFT] = "AfterName";
+    STATE_NAMES[State.BeforeValue >> State.SHIFT] = "BeforeValue";
+    STATE_NAMES[State.MarkupCmt >> State.SHIFT] = "MarkupCmt";
+    STATE_NAMES[State.RCDATA >> State.SHIFT] = "RCDATA";
+    STATE_NAMES[State.CDATA >> State.SHIFT] = "CDATA";
+    STATE_NAMES[State.Attr >> State.SHIFT] = "Attr";
+    STATE_NAMES[State.URL >> State.SHIFT] = "URL";
+    STATE_NAMES[State.JS >> State.SHIFT] = "JS";
+    STATE_NAMES[State.JSDqStr >> State.SHIFT] = "JSDqStr";
+    STATE_NAMES[State.JSSqStr >> State.SHIFT] = "JSSqStr";
+    STATE_NAMES[State.JSRegexp >> State.SHIFT] = "JSRegexp";
+    STATE_NAMES[State.JSBlockCmt >> State.SHIFT] = "JSBlockCmt";
+    STATE_NAMES[State.JSLineCmt >> State.SHIFT] = "JSLineCmt";
+    STATE_NAMES[State.CSS >> State.SHIFT] = "CSS";
+    STATE_NAMES[State.CSSDqStr >> State.SHIFT] = "CSSDqStr";
+    STATE_NAMES[State.CSSSqStr >> State.SHIFT] = "CSSSqStr";
+    STATE_NAMES[State.CSSDqURL >> State.SHIFT] = "CSSDqURL";
+    STATE_NAMES[State.CSSSqURL >> State.SHIFT] = "CSSSqURL";
+    STATE_NAMES[State.CSSURL >> State.SHIFT] = "CSSURL";
+    STATE_NAMES[State.CSSBlockCmt >> State.SHIFT] = "CSSBlockCmt";
+    STATE_NAMES[State.CSSLineCmt >> State.SHIFT] = "CSSLineCmt";
+    STATE_NAMES[State.XML >> State.SHIFT] = "XML";
+  }
+
+  private static final String[] DELIM_NAMES = new String[Delim.COUNT];
+  static {
+    DELIM_NAMES[Delim.None >> Delim.SHIFT] = "None";
+    DELIM_NAMES[Delim.DoubleQuote >> Delim.SHIFT] = "DoubleQuote";
+    DELIM_NAMES[Delim.SingleQuote >> Delim.SHIFT] = "SingleQuote";
+    DELIM_NAMES[Delim.SpaceOrTagEnd >> Delim.SHIFT] = "SpaceOrTagEnd";
+  }
+
+  private static final String[] URLPART_NAMES = new String[URLPart.COUNT];
+  static {
+    URLPART_NAMES[URLPart.None >> URLPart.SHIFT] = "None";
+    URLPART_NAMES[URLPart.PreQuery >> URLPart.SHIFT] = "PreQuery";
+    URLPART_NAMES[URLPart.QueryOrFrag >> URLPart.SHIFT] = "QueryOrFrag";
+  }
+
+  private static final String[] JSCTX_NAMES = new String[JSCtx.COUNT];
+  static {
+    JSCTX_NAMES[JSCtx.Regexp >> JSCtx.SHIFT] = "Regexp";
+    JSCTX_NAMES[JSCtx.DivOp >> JSCtx.SHIFT] = "DivOp";
+    JSCTX_NAMES[JSCtx.Unknown >> JSCtx.SHIFT] = "Unknown";
+  }
+
+  private static final String[] ATTR_NAMES = new String[Attr.COUNT];
+  static {
+    ATTR_NAMES[Attr.None >> Attr.SHIFT] = "None";
+    ATTR_NAMES[Attr.Script >> Attr.SHIFT] = "Script";
+    ATTR_NAMES[Attr.Style >> Attr.SHIFT] = "Style";
+    ATTR_NAMES[Attr.URL >> Attr.SHIFT] = "URL";
+  }
+
+  private static final String[] ELEMENT_NAMES = new String[Element.COUNT];
+  static {
+    ELEMENT_NAMES[Element.None >> Element.SHIFT] = "None";
+    ELEMENT_NAMES[Element.Script >> Element.SHIFT] = "Script";
+    ELEMENT_NAMES[Element.Style >> Element.SHIFT] = "Style";
+    ELEMENT_NAMES[Element.Textarea >> Element.SHIFT] = "Textarea";
+    ELEMENT_NAMES[Element.Title >> Element.SHIFT] = "Title";
+    ELEMENT_NAMES[Element.XML >> Element.SHIFT] = "XML";
+  }
+
   public static String toString(int ctx) {
     StringBuilder sb = new StringBuilder();
-    switch (state(ctx)) {
-      case State.Text: sb.append("Text"); break;
-      case State.TagName: sb.append("TagName"); break;
-      case State.Tag: sb.append("Tag"); break;
-      case State.AttrName: sb.append("AttrName"); break;
-      case State.AfterName: sb.append("AfterName"); break;
-      case State.BeforeValue: sb.append("BeforeValue"); break;
-      case State.HTMLCmt: sb.append("HTMLCmt"); break;
-      case State.RCDATA: sb.append("RCDATA"); break;
-      case State.CDATA: sb.append("CDATA"); break;
-      case State.Attr: sb.append("Attr"); break;
-      case State.URL: sb.append("URL"); break;
-      case State.JS: sb.append("JS"); break;
-      case State.JSDqStr: sb.append("JSDqStr"); break;
-      case State.JSSqStr: sb.append("JSSqStr"); break;
-      case State.JSRegexp: sb.append("JSRegexp"); break;
-      case State.JSBlockCmt: sb.append("JSBlockCmt"); break;
-      case State.JSLineCmt: sb.append("JSLineCmt"); break;
-      case State.CSS: sb.append("CSS"); break;
-      case State.CSSDqStr: sb.append("CSSDqStr"); break;
-      case State.CSSSqStr: sb.append("CSSSqStr"); break;
-      case State.CSSDqURL: sb.append("CSSDqURL"); break;
-      case State.CSSSqURL: sb.append("CSSSqURL"); break;
-      case State.CSSURL: sb.append("CSSURL"); break;
-      case State.CSSBlockCmt: sb.append("CSSBlockCmt"); break;
-      case State.CSSLineCmt: sb.append("CSSLineCmt"); break;
-      default:
-        throw new AssertionError("bad state " + Integer.toString(ctx, 16));
+    sb.append(STATE_NAMES[state(ctx) >> State.SHIFT]);
+    int delim = delim(ctx);
+    if (delim != Delim.None) {
+      sb.append(' ').append(DELIM_NAMES[delim >> Delim.SHIFT]);
     }
-    switch (delim(ctx)) {
-      case Delim.None: break;
-      case Delim.DoubleQuote: sb.append(" DoubleQuote"); break;
-      case Delim.SingleQuote: sb.append(" SingleQuote"); break;
-      case Delim.SpaceOrTagEnd: sb.append(" SpaceOrTagEnd"); break;
-      default:
-        throw new AssertionError("bad delim " + Integer.toString(ctx, 16));
+    int urlPart = urlPart(ctx);
+    if (urlPart != URLPart.None) {
+      sb.append(' ').append(URLPART_NAMES[urlPart >> URLPart.SHIFT]);
     }
-    switch (urlPart(ctx)) {
-      case URLPart.None: break;
-      case URLPart.PreQuery: sb.append(" PreQuery"); break;
-      case URLPart.QueryOrFrag: sb.append(" QueryOrFrag"); break;
-      default:
-        throw new AssertionError("bad urlPart " + Integer.toString(ctx, 16));
+    int jsCtx = jsCtx(ctx);
+    if (jsCtx != JSCtx.Regexp) {
+      sb.append(' ').append(JSCTX_NAMES[jsCtx >> JSCtx.SHIFT]);
     }
-    switch (jsCtx(ctx)) {
-      case JSCtx.Regexp: break;
-      case JSCtx.DivOp: sb.append(" DivOp"); break;
-      case JSCtx.Unknown: sb.append(" Unknown"); break;
-      default:
-        throw new AssertionError("bad jsCtx " + Integer.toString(ctx, 16));
+    int attr = attr(ctx);
+    if (attr != Attr.None) {
+      sb.append(' ').append(ATTR_NAMES[attr >> Attr.SHIFT]);
     }
-    switch (attr(ctx)) {
-      case Attr.None: break;
-      case Attr.Script: sb.append(" Script"); break;
-      case Attr.Style: sb.append(" Style"); break;
-      case Attr.URL: sb.append(" URL"); break;
-      default:
-        throw new AssertionError("bad attr " + Integer.toString(ctx, 16));
-    }
-    switch (element(ctx)) {
-      case Element.None: break;
-      case Element.Script: sb.append(" Script"); break;
-      case Element.Style: sb.append(" Style"); break;
-      case Element.Textarea: sb.append(" Textarea"); break;
-      case Element.Title: sb.append(" Title"); break;
-      default:
-        throw new AssertionError("bad element " + Integer.toString(ctx, 16));
+    int element = element(ctx);
+    if (element != Element.None) {
+      sb.append(' ').append(ELEMENT_NAMES[element >> Element.SHIFT]);
     }
     return sb.toString();
   }
@@ -158,9 +184,9 @@ final class Context {
        */
       BeforeValue = 5 << SHIFT,
       /**
-       * HTMLCmt occurs inside an {@code <!-- HTML comment -->}.
+       * MarkupCmt occurs inside an {@code <!-- HTML or XML comment -->}.
        */
-      HTMLCmt = 6 << SHIFT,
+      MarkupCmt = 6 << SHIFT,
       /**
        * RCDATA occurs inside an RCDATA element ({@code<textarea>} or
        * {@code <title>}) as described at
@@ -169,8 +195,11 @@ final class Context {
       RCDATA = 7 << SHIFT,
       /**
        * CDATA occurs inside a {@code <![CDATA[...]]>} section.
-       * Although these are not HTML standard, they have a clear meaning so
-       * we normalize their content to HTML Text nodes.
+       * We allow these in HTML even though they are not standard outside
+       * foreign XML elements.  They do have a clear meaning so
+       * we normalize their content to HTML Text nodes unless the element is
+       * {@link Element#XML} in which case we don't normalize to avoid
+       * upsetting idiosyncratic XML parsers.
        */
       CDATA = 8 << SHIFT,
       /**
@@ -237,7 +266,16 @@ final class Context {
       /**
        * CSSLineCmt occurs inside a CSS {@code // line comment}.
        */
-      CSSLineCmt = 24 << SHIFT;
+      CSSLineCmt = 24 << SHIFT,
+      /**
+       * Indicates that the content is an XML text block which should require
+       * less normalization than a normal one.  We do not normalize XML since
+       * there are more (and more idiosyncratic especially in web services)
+       * XML parsers than HTML parsers.
+       */
+      XML = 25 << SHIFT;
+
+    private static final int COUNT = 27;
 
     /**
      * isComment is true for any state that contains content meant for template
@@ -245,7 +283,7 @@ final class Context {
      */
     static boolean isComment(int ctx) {
       switch (ctx & MASK) {
-        case HTMLCmt:
+        case MarkupCmt:
         case JSBlockCmt:
         case JSLineCmt:
         case CSSBlockCmt:
@@ -296,6 +334,8 @@ final class Context {
        * closes the attribute.
        */
       SpaceOrTagEnd = 3 << SHIFT;
+
+    private static final int COUNT = 4;
   }
 
   /**
@@ -324,6 +364,8 @@ final class Context {
        * "http://auth/path?^k=v#frag^".
        */
       QueryOrFrag = 2 << SHIFT;
+
+    private static final int COUNT = 3;
   }
 
   /**
@@ -349,6 +391,8 @@ final class Context {
        * Unknown occurs where a '/' is ambiguous due to context joining.
        */
       Unknown = 2 << SHIFT;
+
+    private static final int COUNT = 3;
   }
 
   /**
@@ -385,7 +429,14 @@ final class Context {
       /**
        * Title corresponds to the RCDATA {@code <title>} element.
        */
-      Title = 4 << SHIFT;
+      Title = 4 << SHIFT,
+      /**
+       * XML corresponds to an XML element in an XML document.
+       * After XML elements we transition back into an XMLText state.
+       */
+      XML = 5 << SHIFT;
+
+    private static final int COUNT = 6;
   }
 
 
@@ -413,6 +464,8 @@ final class Context {
        * URL corresponds to an attribute whose value is a URL.
        */
       URL = 3 << SHIFT;
+
+    private static final int COUNT = 4;
   }
 
   static int state(int ctx, int state) {

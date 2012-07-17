@@ -4,6 +4,8 @@
 # parameters (String s, int off, int end) and generating a copy that
 # takes (char[] s, int off, int end).
 
+# Fix emacs syntax highlighting "
+
 src = r"""
 // Copyright (C) 2011 Google Inc.
 //
@@ -155,7 +157,7 @@ class HTML {
 
   /** escapeOnto escapes for inclusion in HTML text. */
   static void escapeOnto(@Nullable Object o, Writer out) throws IOException {
-    String safe = ContentType.HTML.derefSafeContent(o);
+    String safe = ContentType.Markup.derefSafeContent(o);
     if (safe != null) {
       out.write(safe);
       return;
@@ -174,7 +176,7 @@ class HTML {
    * existing entities.
    */
   static void normalizeOnto(@Nullable Object o, Writer out) throws IOException {
-    String safe = ContentType.HTML.derefSafeContent(o);
+    String safe = ContentType.Markup.derefSafeContent(o);
     if (safe != null) {
       out.write(safe);
       return;
@@ -194,7 +196,7 @@ class HTML {
   /** escapeRCDATAOnto escapes for inclusion in an RCDATA element body. */
   static void escapeRCDATAOnto(@Nullable Object o, Writer out)
       throws IOException {
-    String safe = ContentType.HTML.derefSafeContent(o);
+    String safe = ContentType.Markup.derefSafeContent(o);
     if (safe != null) {
       // Normalize the content so that an RCDATA tag, like a
       // {@code <textarea>} will not be ended prematurely if safe contains
@@ -212,7 +214,7 @@ class HTML {
    */
   static int filterNameOnto(@Nullable Object o, Writer out, int context)
       throws IOException {
-    String safe = ContentType.HTMLAttr.derefSafeContent(o);
+    String safe = ContentType.Attr.derefSafeContent(o);
     if (safe != null) {
       if (Context.state(context) == Context.State.TagName) { out.write(' '); }
       NORM_BASIC_REPLACEMENT_TABLE.escapeOnto(safe, out);

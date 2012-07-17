@@ -139,7 +139,7 @@ class Attr {
     .put("sizes",           ContentType.Plain)
     .put("span",            ContentType.Plain)
     .put("src",             ContentType.URL)
-    .put("srcdoc",          ContentType.HTML)
+    .put("srcdoc",          ContentType.Markup)
     .put("srclang",         ContentType.Plain)
     .put("start",           ContentType.Plain)
     .put("step",            ContentType.Plain)

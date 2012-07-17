@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
 public final class Trie<T> {
   private final char start;
   private final Trie<T>[] arr;
-  private final T value;
+  public final T value;
 
   private Trie(char start, Trie<T>[] arr, @Nullable T value) {
     this.start = start;

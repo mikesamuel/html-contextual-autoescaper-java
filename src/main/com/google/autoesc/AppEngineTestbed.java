@@ -190,7 +190,7 @@ public class AppEngineTestbed extends HttpServlet {
     out.writeSafe("</textarea>");
     if (result != null) {
       out.writeSafe("<td>");
-      out.write(new SafeContentString(result, ContentType.HTML));
+      out.write(new SafeContentString(result, ContentType.Markup));
     }
     out.writeSafe(
         "</table>" +

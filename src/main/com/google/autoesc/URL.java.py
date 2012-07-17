@@ -4,6 +4,8 @@
 # parameters (String s, int off, int end) and generating a copy that
 # takes (char[] s, int off, int end).
 
+# Fix emacs syntax highlighting "
+
 src = r"""
 // Copyright (C) 2011 Google Inc.
 //

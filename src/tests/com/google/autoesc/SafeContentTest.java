@@ -22,8 +22,8 @@ public class SafeContentTest extends TestCase {
   private static final Object[] INPUTS = {
     "<b> \"foo%\" O'Reilly &bar;",
     new SafeContentString("a[href =~ \"//example.com\"]#foo", ContentType.CSS),
-    new SafeContentString("Hello, <b>World</b> &amp;tc!", ContentType.HTML),
-    new SafeContentString("dir=\"ltr\" title=\"x<y\"", ContentType.HTMLAttr),
+    new SafeContentString("Hello, <b>World</b> &amp;tc!", ContentType.Markup),
+    new SafeContentString("dir=\"ltr\" title=\"x<y\"", ContentType.Attr),
     new SafeContentString("c && alert(\"Hello, World!\");", ContentType.JS),
     new SafeContentString("Hello, World & O'Reilly\\x21", ContentType.JSStr),
     new SafeContentString("greeting=H%69&addressee=(World)", ContentType.URL),
