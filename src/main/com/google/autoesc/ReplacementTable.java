@@ -70,7 +70,7 @@ class ReplacementTable {
     } else if (o instanceof char[]) {
       char[] ca = (char[]) o;
       int len = ca.length;
-      while (len != 0 && ca[len-1] != 0) { --len; }
+      while (len != 0 && ca[len-1] == 0) { --len; }
       return new String(ca, 0, len);
     }
     return o.toString();
