@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import junit.framework.ComparisonFailure;
 import junit.framework.TestCase;
 
 public class HTMLEscapingWriterTest extends TestCase {
@@ -1378,6 +1379,58 @@ public class HTMLEscapingWriterTest extends TestCase {
     } catch (TemplateException ex) {
       assertEquals(html, error, ex.getMessage());
     }
+  }
+
+  /**
+   * Splitting an untrusted write into multiple trusted writes shouldn't affect
+   * the resulting context or the normalized text.
+   */
+  private void assertSplitInvariantHolds(
+      String expectedNormalizedOutput, int expectedEndContext,
+      String... chunks)
+  throws Exception {
+    StringWriter outChunked = new StringWriter();
+    StringWriter outUnchunked = new StringWriter();
+
+    StringBuilder whole = new StringBuilder();
+
+    HTMLEscapingWriter wChunked = new HTMLEscapingWriter(outChunked);
+    for (String chunk : chunks) {
+      wChunked.writeSafe(chunk);
+      whole.append(chunk);
+    }
+    int chunkedEndContext = wChunked.getContext();
+
+    HTMLEscapingWriter wUnchunked = new HTMLEscapingWriter(outUnchunked);
+    wUnchunked.writeSafe(whole.toString());
+    int unchunkedEndContext = wUnchunked.getContext();
+
+    assertContextsEqual("chunked", expectedEndContext, chunkedEndContext);
+    assertContextsEqual("unchunked", expectedEndContext, unchunkedEndContext);
+
+    assertEquals(
+        "chunked", expectedNormalizedOutput, outChunked.toString());
+    assertEquals(
+        "unchunked", expectedNormalizedOutput, outUnchunked.toString());
+  }
+
+  private static void assertContextsEqual(String msg, int want, int got) {
+    if (want != got) {
+      throw new ComparisonFailure(
+          msg, Context.toString(want), Context.toString(got));
+    }
+  }
+
+  public final void testSplitInvariant() throws Exception {
+    assertSplitInvariantHolds(
+        "<html><i><b id=\"foo\"></b><b id=\"boo\"></b></i></html>",
+        Context.TEXT,
+
+        "<html><i><b id=\"foo",
+        "\">",
+        "</b><b id=\"boo",
+        "\">",
+        "</b></i></html>");
   }
 
   public final void testErrors() throws Exception {
