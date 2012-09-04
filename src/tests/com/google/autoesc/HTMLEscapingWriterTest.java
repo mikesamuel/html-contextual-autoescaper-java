@@ -1386,22 +1386,35 @@ public class HTMLEscapingWriterTest extends TestCase {
    * the resulting context or the normalized text.
    */
   private void assertSplitInvariantHolds(
-      String expectedNormalizedOutput, int expectedEndContext,
-      String... chunks)
+      String expectedNormalizedOutput, int expectedEndContext, String... chunks)
+  throws Exception {
+    assertSplitInvariantHolds(
+        false, expectedNormalizedOutput, expectedEndContext, chunks);
+    assertSplitInvariantHolds(
+        true, expectedNormalizedOutput, expectedEndContext, chunks);
+  }
+
+  private void assertSplitInvariantHolds(
+      boolean memoizing,
+      String expectedNormalizedOutput, int expectedEndContext, String... chunks)
   throws Exception {
     StringWriter outChunked = new StringWriter();
     StringWriter outUnchunked = new StringWriter();
 
     StringBuilder whole = new StringBuilder();
 
-    HTMLEscapingWriter wChunked = new HTMLEscapingWriter(outChunked);
+    HTMLEscapingWriter wChunked = memoizing
+        ? new MemoizingHTMLEscapingWriter(outChunked)
+        : new HTMLEscapingWriter(outChunked);
     for (String chunk : chunks) {
       wChunked.writeSafe(chunk);
       whole.append(chunk);
     }
     int chunkedEndContext = wChunked.getContext();
 
-    HTMLEscapingWriter wUnchunked = new HTMLEscapingWriter(outUnchunked);
+    HTMLEscapingWriter wUnchunked = memoizing
+        ? new MemoizingHTMLEscapingWriter(outUnchunked)
+        : new HTMLEscapingWriter(outUnchunked);
     wUnchunked.writeSafe(whole.toString());
     int unchunkedEndContext = wUnchunked.getContext();
 

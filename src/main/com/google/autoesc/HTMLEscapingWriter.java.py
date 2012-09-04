@@ -1759,8 +1759,12 @@ public class HTMLEscapingWriter extends Writer {
   };
 
   // Privileged accessors for the memoizing writer.
-  void setContext(int context) { this.context = context; }
+  void setContextAndRtable(int context, ReplacementTable rtable) {
+    this.context = context;
+    this.rtable = rtable;
+  }
   Writer getWriter() { return this.out; }
+  ReplacementTable getRtable() { return rtable; }
   void replaceWriter(Writer out) { this.out = out; }
 }
 """  # Fix emacs syntax highlighting "

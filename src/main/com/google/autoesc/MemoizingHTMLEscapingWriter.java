@@ -36,25 +36,25 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
   private static final boolean USE_GLOBAL_CACHE = false;
 
   // TODO: profile the two cache implementations and decide which one stays.
-  private final Map<MemoKey, MemoValue> memoTable = USE_GLOBAL_CACHE
-      ? null : new HashMap<MemoKey, MemoValue>();
-  private static final Cache<MemoKey, MemoValue> MEMO_TABLE;
+  private final Map<MemoTuple, MemoTuple> memoTable = USE_GLOBAL_CACHE
+      ? null : new HashMap<MemoTuple, MemoTuple>();
+  private static final Cache<MemoTuple, MemoTuple> MEMO_TABLE;
   static {
     MEMO_TABLE = USE_GLOBAL_CACHE ?
       CacheBuilder.newBuilder()
       .concurrencyLevel(2)
       .maximumSize(1000)
-      .<MemoKey, MemoValue>build(new CacheLoader<MemoKey, MemoValue>() {
+      .<MemoTuple, MemoTuple>build(new CacheLoader<MemoTuple, MemoTuple>() {
         @Override
-        public MemoValue load(MemoKey key)
+        public MemoTuple load(MemoTuple key)
             throws IOException, TemplateException {
           StringWriter normalizedSafeContent = new StringWriter(
               key.safeContent.length() + 16);
           HTMLEscapingWriter w = new HTMLEscapingWriter(normalizedSafeContent);
-          w.setContext(key.startContext);
+          w.setContextAndRtable(key.context, key.rtable);
           w.writeSafe(key.safeContent);
-          return new MemoValue(
-              w.getContext(), normalizedSafeContent.toString());
+          return new MemoTuple(
+              w.getContext(), normalizedSafeContent.toString(), w.getRtable());
         }
       })
       : null;
@@ -64,54 +64,49 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
     super(out);
   }
 
-  private static final class MemoKey {
-    final int startContext;
+  private static final class MemoTuple {
+    final int context;
     final String safeContent;
-    final int hashCode;
+    final ReplacementTable rtable;
 
-    MemoKey(int startContext, String safeContent) {
-      this.startContext = startContext;
+    MemoTuple(int context, String safeContent, ReplacementTable rtable) {
+      this.context = context;
       this.safeContent = safeContent;
-      this.hashCode = safeContent.hashCode() ^ (31 * startContext);
+      this.rtable = rtable;
     }
 
     @Override
     public boolean equals(Object o) {
-      if (!(o instanceof MemoKey)) { return false; }
-      MemoKey that = (MemoKey) o;
-      return startContext == that.startContext
+      if (!(o instanceof MemoTuple)) { return false; }
+      MemoTuple that = (MemoTuple) o;
+      return context == that.context
+          && this.rtable == that.rtable
           && safeContent.equals(that.safeContent);
     }
 
-    @Override public int hashCode() { return hashCode; }
-  }
-
-  private static final class MemoValue {
-    final int endContext;
-    final String normalizedSafeContent;
-
-    MemoValue(int endContext, String normalizedSafeContent) {
-      this.endContext = endContext;
-      this.normalizedSafeContent = normalizedSafeContent;
+    @Override public int hashCode() {
+      return context
+          ^ (31 * (this.safeContent.hashCode()
+              ^ (rtable != null ? 31 * rtable.hashCode() : 0)));
     }
   }
 
   @Override
   public void writeSafe(String safeContent)
       throws IOException, TemplateException {
-    MemoKey key = new MemoKey(getContext(), safeContent);
+    MemoTuple key = new MemoTuple(getContext(), safeContent, getRtable());
     if (USE_GLOBAL_CACHE) {
       try {
-        MemoValue value = MEMO_TABLE.get(key);
-        getWriter().write(value.normalizedSafeContent);
-        setContext(value.endContext);
+        MemoTuple value = MEMO_TABLE.get(key);
+        getWriter().write(value.safeContent);
+        setContextAndRtable(value.context, value.rtable);
       } catch (ExecutionException ex) {
         Throwables.propagateIfPossible(
              ex, IOException.class, TemplateException.class);
         Throwables.propagate(ex);
       }
     } else {
-      MemoValue value = memoTable.get(key);
+      MemoTuple value = memoTable.get(key);
       if (value == null) {
         StringWriter normalizedSafeContent = new StringWriter(
             safeContent.length() + 16);
@@ -119,11 +114,12 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
         replaceWriter(normalizedSafeContent);
         super.writeSafe(safeContent);
         replaceWriter(oout);
-        value = new MemoValue(getContext(), normalizedSafeContent.toString());
+        value = new MemoTuple(
+            getContext(), normalizedSafeContent.toString(), getRtable());
         memoTable.put(key, value);
       }
-      getWriter().write(value.normalizedSafeContent);
-      setContext(value.endContext);
+      getWriter().write(value.safeContent);
+      setContextAndRtable(value.context, value.rtable);
     }
   }
 }
