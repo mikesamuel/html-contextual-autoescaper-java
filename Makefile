@@ -3,7 +3,7 @@ TEST_CLASSPATH=$(CLASSPATH):lib/junit/junit.jar
 JAVAC_FLAGS=-g -Xlint:all -encoding UTF-8 -source 1.5 -target 1.5
 
 
-default: javadoc runtests findbugs out/autoesc.jar war
+default: javadoc runtests findbugs jars war
 
 clean:
 	rm -rf out
