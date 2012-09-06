@@ -114,3 +114,7 @@ out/autoesc-src.jar: out/genfiles.tstamp src/main/com/google/autoesc/*.java
 	cp -R src/{main,tests}/com out/genfiles/src/main/com out/combined-src/ && \
 	find out/combined-src/ -name '.*' -exec rm '{}' \; && \
 	jar cMf $@ -C out/combined-src com
+
+versioned_jars: jars
+	cp out/autoesc.jar out/autoesc-"$$(git tag | head -1)".jar
+	cp out/autoesc-src.jar out/autoesc-src-"$$(git tag | head -1)".jar
