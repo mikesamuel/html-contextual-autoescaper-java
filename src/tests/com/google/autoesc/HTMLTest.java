@@ -103,8 +103,12 @@ public class HTMLTest extends TestCase {
       throws Exception {
     StringWriter buf = new StringWriter();
     HTMLEscapingWriter w = new HTMLEscapingWriter(buf);
-    w.stripTags(html, Context.Delim.DoubleQuote);
-    assertEquals(buf.toString(), htmlNoTags);
+    try {
+      w.stripTags(html, Context.Delim.DoubleQuote);
+      assertEquals(buf.toString(), htmlNoTags);
+    } finally {
+      w.close();
+    }
   }
 
   public final void testStripTags() throws Exception {

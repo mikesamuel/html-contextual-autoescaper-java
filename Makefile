@@ -58,7 +58,7 @@ out/com/google/autoesc/alltests: src/tests/com/google/autoesc/*Test.java
 
 runtests: tests
 	@echo running tests
-	@java -classpath out:src/tests:${TEST_CLASSPATH} junit.textui.TestRunner com.google.autoesc.AllTests
+	@java -classpath out:src/tests:${TEST_CLASSPATH} -enableassertions junit.textui.TestRunner com.google.autoesc.AllTests
 	@echo running tests w/out extra jars
 	@java -Dtest.nodeps=true -classpath out:lib/junit/junit.jar junit.textui.TestRunner com.google.autoesc.AllTests
 

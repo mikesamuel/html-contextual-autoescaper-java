@@ -33,17 +33,33 @@ public class HTMLEscapingWriterTest extends TestCase {
     {
       StringWriter sw = new StringWriter();
       HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
-      w.writeSafe(html);
-      assertEquals(outContext, Context.toString(w.getContext()));
-      assertEquals(normalized, sw.toString());
+      try {
+        w.writeSafe(html);
+        assertEquals(outContext, Context.toString(w.getContext()));
+        assertEquals(normalized, sw.toString());
+      } finally {
+        try {
+          w.close();
+        } catch (BadEndContextException ex) {
+          // Test inputs need not end in a valid end context.
+        }
+      }
     }
     {
       StringWriter sw = new StringWriter();
       HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
-      char[] chars = html.toCharArray();
-      w.writeSafe(chars, 0, chars.length);
-      assertEquals(outContext, Context.toString(w.getContext()));
-      assertEquals(normalized, sw.toString());
+      try {
+        char[] chars = html.toCharArray();
+        w.writeSafe(chars, 0, chars.length);
+        assertEquals(outContext, Context.toString(w.getContext()));
+        assertEquals(normalized, sw.toString());
+      } finally {
+        try {
+          w.close();
+        } catch (BadEndContextException ex) {
+          // Test inputs need not end in a valid end context.
+        }
+      }
     }
   }
 
@@ -1355,29 +1371,57 @@ public class HTMLEscapingWriterTest extends TestCase {
   }
 
   private void assertErrorMsg(String html, String error) throws Exception {
-    try {
+    {
       HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter());
-      w.writeSafe(html);
-      w.close();
-      fail("Expected error " + error);
-    } catch (TemplateException ex) {
-      assertEquals(html, error, ex.getMessage());
+      boolean closed = false;
+      try {
+        w.writeSafe(html);
+        closed = true;
+        w.close();
+        fail("Expected error " + error);
+      } catch (TemplateException ex) {
+        assertEquals(html, error, ex.getMessage());
+      } finally {
+        if (!closed) {
+          try {
+            w.close();
+          } catch (BadEndContextException ex) {
+            // Test inputs need not end in a valid end context.
+          }
+        }
+      }
     }
     // None of these error cases trigger exceptions when stripping tags.
     {
       HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter());
-      w.stripTags(html, Context.Delim.DoubleQuote);
+      try {
+        w.stripTags(html, Context.Delim.DoubleQuote);
+      } finally {
+        w.close();
+      }
     }
     // Errors should be triggered regardless of whether the input is passed
     // as a String or a char[]
-    try {
+    {
       HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter());
-      char[] chars = ("'" + html + "'").toCharArray();
-      w.writeSafe(chars, 1, 1 + html.length());
-      w.close();
-      fail("Expected error " + error);
-    } catch (TemplateException ex) {
-      assertEquals(html, error, ex.getMessage());
+      boolean closed = false;
+      try {
+        char[] chars = ("'" + html + "'").toCharArray();
+        w.writeSafe(chars, 1, 1 + html.length());
+        closed = true;
+        w.close();
+        fail("Expected error " + error);
+      } catch (TemplateException ex) {
+        assertEquals(html, error, ex.getMessage());
+      } finally {
+        if (!closed) {
+          try {
+            w.close();
+          } catch (BadEndContextException ex) {
+            // Test inputs need not end in a valid end context.
+          }
+        }
+      }
     }
   }
 
@@ -1403,20 +1447,30 @@ public class HTMLEscapingWriterTest extends TestCase {
 
     StringBuilder whole = new StringBuilder();
 
+    int chunkedEndContext;
     HTMLEscapingWriter wChunked = memoizing
         ? new MemoizingHTMLEscapingWriter(outChunked)
         : new HTMLEscapingWriter(outChunked);
-    for (String chunk : chunks) {
-      wChunked.writeSafe(chunk);
-      whole.append(chunk);
+    try {
+      for (String chunk : chunks) {
+        wChunked.writeSafe(chunk);
+        whole.append(chunk);
+      }
+      chunkedEndContext = wChunked.getContext();
+    } finally {
+      wChunked.close();
     }
-    int chunkedEndContext = wChunked.getContext();
 
+    int unchunkedEndContext;
     HTMLEscapingWriter wUnchunked = memoizing
         ? new MemoizingHTMLEscapingWriter(outUnchunked)
         : new HTMLEscapingWriter(outUnchunked);
-    wUnchunked.writeSafe(whole.toString());
-    int unchunkedEndContext = wUnchunked.getContext();
+    try {
+      wUnchunked.writeSafe(whole.toString());
+      unchunkedEndContext = wUnchunked.getContext();
+    } finally {
+      wUnchunked.close();
+    }
 
     assertContextsEqual("chunked", expectedEndContext, chunkedEndContext);
     assertContextsEqual("unchunked", expectedEndContext, unchunkedEndContext);

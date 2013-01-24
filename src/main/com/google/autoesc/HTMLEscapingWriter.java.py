@@ -102,13 +102,13 @@ public class HTMLEscapingWriter extends Writer {
     int context = this.context;
     releaseOnClose();
     if (state(context) != Context.State.Text) {
-      throw new TemplateException("Incomplete document fragment ended in "
+      throw new BadEndContextException("Incomplete document fragment ended in "
           + Context.toString(context));
     }
   }
 
   private void releaseOnClose() {
-    this.context = -1;
+    this.context = INVALID_CONTEXT_CLOSED;
     this.out = this.underlying = null;
     this.rtable = null;
     this.htmlEscapingWriterSqOk = htmlEscapingWriterDqOk = null;
@@ -256,7 +256,10 @@ public class HTMLEscapingWriter extends Writer {
   }
 
   /** @return a {@link Context}. */
-  int getContext() { return context; }
+  int getContext() {
+    assert context != INVALID_CONTEXT_CLOSED : "closed";
+    return context;
+  }
 
   /**
    * writeUnsafe writes an unsafe value escaping as necessary to ensure that
@@ -1766,6 +1769,8 @@ public class HTMLEscapingWriter extends Writer {
   Writer getWriter() { return this.out; }
   ReplacementTable getRtable() { return rtable; }
   void replaceWriter(Writer out) { this.out = out; }
+
+  private static final int INVALID_CONTEXT_CLOSED = -1;
 }
 """  # Fix emacs syntax highlighting "
 
