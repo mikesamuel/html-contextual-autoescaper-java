@@ -1368,6 +1368,12 @@ public class HTMLEscapingWriterTest extends TestCase {
             "<?xml version=\"1.0\"><x><!-- -{{\"--><evil>\"}}- --></x>",
             "<?xml version=\"1.0\">"
             + "<x><!-- - - --></x>");
+    assertTemplateOutput(
+            "Plus in Opaque URLs",
+            // Not reencoded as space but not allowed to enable UTF-7 attacks
+            // either.
+            "<a href='data;base64:a+b'>a+b</a>",
+            "<a href='data;base64:a&#43;b'>a+b</a>");
   }
 
   private void assertErrorMsg(String html, String error) throws Exception {
