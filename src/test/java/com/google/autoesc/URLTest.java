@@ -114,7 +114,15 @@ public class URLTest extends TestCase {
       URL.escapeOnto(false, input, buf);
       String encoded = buf.toString();
       String actual = URLDecoder.decode(encoded, "UTF-8");
-      assertEquals(encoded, input, actual);
+
+      String expected = input;
+      if (i < 0x10000 && Character.isSurrogate((char) i)) {
+        // Orphaned surrogates need not round-trip properly.
+        expected = "\uFFFD";
+      }
+
+      assertEquals(
+          "i=" + Integer.toHexString(i) + ": " + encoded, expected, actual);
 
       StringWriter buf2 = new StringWriter();
       URL.escapeOnto(

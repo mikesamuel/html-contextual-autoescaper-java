@@ -22,9 +22,9 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import com.google.common.base.Throwables;
-import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 
 /**
  * An {@link HTMLEscapingWriter} that is more efficient at handling repeated
@@ -38,7 +38,7 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
   // TODO: profile the two cache implementations and decide which one stays.
   private final Map<MemoTuple, MemoTuple> memoTable = USE_GLOBAL_CACHE
       ? null : new HashMap<MemoTuple, MemoTuple>();
-  private static final Cache<MemoTuple, MemoTuple> MEMO_TABLE;
+  private static final LoadingCache<MemoTuple, MemoTuple> MEMO_TABLE;
   static {
     MEMO_TABLE = USE_GLOBAL_CACHE ?
       CacheBuilder.newBuilder()
