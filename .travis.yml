@@ -1,4 +1,6 @@
 language: java
 sudo: false
+env:
+  - MAVEN_OPTS="-Xss4M"
 jdk:
   - oraclejdk8
