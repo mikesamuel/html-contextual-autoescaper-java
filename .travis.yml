@@ -1,7 +1,6 @@
 language: java
 sudo: false
-before_script:
-  - export MAVEN_OPTS="-Xss4M"
-  - export MAVEN_SKIP_RC=true
 jdk:
   - oraclejdk8
+install: MAVEN_SKIP_RC=true MAVEN_OPTS="-Xss4M" mvn install -DskipTests=true
+script: MAVEN_SKIP_RC=true MAVEN_OPTS="-Xss4M" mvn
