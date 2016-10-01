@@ -3,3 +3,6 @@
 classes
 out
 *.pyc
+*~
+/target/
+/.settings/
