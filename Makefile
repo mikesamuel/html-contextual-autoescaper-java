@@ -1,6 +1,6 @@
 CLASSPATH=lib/guava-libraries/guava.jar:lib/jsr305/jsr305.jar:lib/jsdk2.1/servlet.jar
 TEST_CLASSPATH=$(CLASSPATH):lib/junit/junit.jar
-JAVAC_FLAGS=-g -Xlint:all -encoding UTF-8 -source 1.5 -target 1.5
+JAVAC_FLAGS=-g -Xlint:all -encoding UTF-8 -source 1.7 -target 1.7 -J-Xss4m
 
 
 default: javadoc runtests findbugs jars war
@@ -27,7 +27,7 @@ out/war/WEB-INF: war/WEB-INF
 	@rm -rf out/war/WEB-INF
 	@cp -r war/WEB-INF out/war/WEB-INF \
 	&& echo packed appengine testbed
-out/genfiles.tstamp: src/main/com/google/autoesc/*.java.py
+out/genfiles.tstamp: src/main/java/com/google/autoesc/*.java.py
 	@echo generating source files
 	@mkdir -p out/genfiles
 	@(for f in $^; do \
@@ -38,23 +38,23 @@ out/genfiles.tstamp: src/main/com/google/autoesc/*.java.py
 	&& echo generated source files
 
 classes: out/classes.tstamp
-out/classes.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
+out/classes.tstamp: out/genfiles.tstamp src/main/java/com/google/autoesc/*.java
 	@echo compiling classes
 	@javac ${JAVAC_FLAGS} -classpath ${CLASSPATH} -d out \
-	  {,out/genfiles/}src/main/com/google/autoesc/*.java \
+	  {,out/genfiles/}src/main/java/com/google/autoesc/*.java \
 	&& touch out/classes.tstamp \
 	&& echo compiled classes
 
 # Depends on all java files under tests.
 tests: out/tests.tstamp out/com/google/autoesc/alltests
-out/tests.tstamp: out/classes.tstamp src/tests/com/google/autoesc/*.java
+out/tests.tstamp: out/classes.tstamp src/test/java/com/google/autoesc/*.java
 	@echo compiling tests
 	@javac ${JAVAC_FLAGS} -classpath out:${TEST_CLASSPATH} -d out \
 	  $$(echo $^ | tr ' ' '\n' | egrep '\.java$$') \
 	&& touch out/tests.tstamp \
 	&& echo compiled tests
-out/com/google/autoesc/alltests: src/tests/com/google/autoesc/*Test.java
-	@echo $^ | tr ' ' '\n' | perl -pe 's#^src/tests/|\.java$$##g; s#/#.#g;' > $@
+out/com/google/autoesc/alltests: src/test/java/com/google/autoesc/*Test.java
+	@echo $^ | tr ' ' '\n' | perl -pe 's#^src/test/java/|\.java$$##g; s#/#.#g;' > $@
 
 runtests: tests
 	@echo running tests
@@ -81,7 +81,7 @@ out/findbugs.txt: out/tests.tstamp
 
 # Builds the documentation.
 javadoc: out/javadoc.tstamp
-out/javadoc.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
+out/javadoc.tstamp: out/genfiles.tstamp src/main/java/com/google/autoesc/*.java
 	@echo generating javadoc
 	@mkdir -p out/javadoc
 	@javadoc -locale en -d out/javadoc \
@@ -95,7 +95,7 @@ out/javadoc.tstamp: out/genfiles.tstamp src/main/com/google/autoesc/*.java
 	  -header '<a href="https://github.com/mikesamuel/html-contextual-autoescaper-java" target=_top>source repo</a>' \
 	  -J-Xmx500m -nohelp -sourcetab 8 -docencoding UTF-8 -protected \
 	  -encoding UTF-8 -author -version \
-	  {,out/genfiles/}src/main/com/google/autoesc/*.java \
+	  {,out/genfiles/}src/main/java/com/google/autoesc/*.java \
 	&& touch out/javadoc.tstamp \
 	&& echo javadoc generated
 
@@ -107,11 +107,11 @@ out/autoesc.jar: out/classes.tstamp
 	  egrep -v 'Tests?([^.]+)?\.class' | \
 	  xargs jar cf autoesc.jar \
 	&& echo packaged jar
-out/autoesc-src.jar: out/genfiles.tstamp src/main/com/google/autoesc/*.java
+out/autoesc-src.jar: out/genfiles.tstamp src/main/java/com/google/autoesc/*.java
 	@echo packing src jar
 	@rm -rf $@ out/combined-src && \
 	mkdir out/combined-src && \
-	cp -R src/{main,tests}/com out/genfiles/src/main/com out/combined-src/ && \
+	cp -R src/{main,test}/java/com out/genfiles/src/main/java/com out/combined-src/ && \
 	find out/combined-src/ -name '.*' -exec rm '{}' \; && \
 	jar cMf $@ -C out/combined-src com
 
