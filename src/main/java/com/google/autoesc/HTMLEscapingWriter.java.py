@@ -122,6 +122,7 @@ public class HTMLEscapingWriter extends Writer {
       unsafeBuffered.setLength(0);
       write(s);
     }
+    out.flush();
   }
 
   /**
