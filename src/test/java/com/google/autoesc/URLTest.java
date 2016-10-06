@@ -19,9 +19,11 @@ import java.net.URLDecoder;
 
 import junit.framework.TestCase;
 
-public class URLTest extends TestCase {
+@SuppressWarnings("javadoc")
+public final class URLTest extends TestCase {
 
-  private void assertNormalized(String text, String norm) throws Exception {
+  private static void assertNormalized(String text, String norm)
+      throws Exception {
     {
       StringWriter buf = new StringWriter();
       URL.escapeOnto(true, text, buf);
@@ -35,7 +37,7 @@ public class URLTest extends TestCase {
     URLDecoder.decode(norm, "UTF-8");
   }
 
-  public final void testURLNormalizer() throws Exception {
+  public static final void testURLNormalizer() throws Exception {
     assertNormalized("", "");
     assertNormalized(
         "http://example.com:80/foo/bar?q=foo%20&bar=x+y#frag",
@@ -49,7 +51,7 @@ public class URLTest extends TestCase {
     assertNormalized("/foo|bar/%5c\u1234", "/foo%7cbar/%5c%e1%88%b4");
   }
 
-  public final void testURLFilters() throws Exception {
+  public static final void testURLFilters() throws Exception {
     String input = (
         "\0\1\2\3\4\5\6\7\10\t\n\13\14\r\16\17" +
         "\20\21\22\23\24\25\26\27\30\31\32\33\34\35\36\37" +
@@ -104,7 +106,7 @@ public class URLTest extends TestCase {
     }
   }
 
-  public final void testURLEncode() throws Exception {
+  public static final void testURLEncode() throws Exception {
     // This tests the custom UTF-8 encoding code in URL.escapeOnto.
     // Step by a value that is < 128 and coprime with 2**n to sample a
     // representative range of codepoints.
@@ -131,7 +133,7 @@ public class URLTest extends TestCase {
     }
   }
 
-  public final void testURLPrefixAllowed() throws Exception {
+  public static final void testURLPrefixAllowed() {
     String[] ok = {
       "http://example.com/",
       "HTTP://example.com/",

@@ -26,6 +26,7 @@ import java.io.IOException;
 public class TemplateException extends IOException {
   static final long serialVersionUID = -8621232850911102715L;
 
+  /** @see IOException#IOException(String) */
   public TemplateException(String message) {
     super(message);
   }

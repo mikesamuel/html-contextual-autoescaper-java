@@ -30,5 +30,6 @@ public interface SafeContent {
    * A string that meets the criteria for its
    * {@link #getContentType content type}.
    */
+  @Override
   public @Nonnull String toString();
 }

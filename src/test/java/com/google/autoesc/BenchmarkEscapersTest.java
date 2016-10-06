@@ -20,6 +20,7 @@ import java.util.List;
 
 import junit.framework.TestCase;
 
+@SuppressWarnings("javadoc")
 public class BenchmarkEscapersTest extends TestCase {
 
   static final int N_RUNS = 2000;
@@ -320,7 +321,7 @@ public class BenchmarkEscapersTest extends TestCase {
   private static final char[] SPARSE_ASCII_SNIPPET_CHARS
       = SPARSE_ASCII_SNIPPET.toCharArray();
 
-  public final void testEscaperSpeed() throws Exception {
+  public static final void testEscaperSpeed() throws Exception {
     // Warmup the JVM.
     doTest(DENSE_SNIPPET, "dense");
     doTest(DENSE_SNIPPET_CHARS, "char[]");
@@ -330,8 +331,8 @@ public class BenchmarkEscapersTest extends TestCase {
     doTest(SPARSE_ASCII_SNIPPET_CHARS, "char[]");
 
     // Collect performance stats.
-    List<Object[]> cols = new ArrayList<Object[]>();
-    List<Object> headerCol = new ArrayList<Object>();
+    List<Object[]> cols = new ArrayList<>();
+    List<Object> headerCol = new ArrayList<>();
     headerCol.add("");
     headerCol.addAll(Arrays.asList(Escaper.values()));
     cols.add(headerCol.toArray());
@@ -354,7 +355,7 @@ public class BenchmarkEscapersTest extends TestCase {
     TestUtil.writeTable(cols.toArray());
   }
 
-  private final Object[] doTest(String testString, String name)
+  private static final Object[] doTest(String testString, String name)
       throws Exception {
     // Run the escapers.
     long[] times = runEscapers(N_RUNS, testString);
@@ -364,7 +365,7 @@ public class BenchmarkEscapersTest extends TestCase {
     return col;
   }
 
-  private final Object[] doTest(char[] testString, String name)
+  private static final Object[] doTest(char[] testString, String name)
       throws Exception {
     // Run the escapers.
     long[] times = runEscapers(N_RUNS, testString);
@@ -381,8 +382,8 @@ public class BenchmarkEscapersTest extends TestCase {
     long[] times = new long[n];
     // Use DEV_NULL so we're benchmarking the time the encoding takes, not the
     // time spent moving bytes around in buffers.
-    HTMLEscapingWriter w = new HTMLEscapingWriter(HTMLEscapingWriter.DEV_NULL);
-    try {
+    try (HTMLEscapingWriter w = new HTMLEscapingWriter(
+            HTMLEscapingWriter.DEV_NULL)) {
       for (int i = 0; i < n; ++i) {
         long t0 = System.nanoTime();
         for (int j = runs; --j >= 0;) {
@@ -391,8 +392,6 @@ public class BenchmarkEscapersTest extends TestCase {
         long t1 = System.nanoTime();
         times[i] = (t1 - t0) / 1000;
       }
-    } finally {
-      w.close();
     }
     return times;
   }
@@ -404,8 +403,8 @@ public class BenchmarkEscapersTest extends TestCase {
     long[] times = new long[n];
     // Use DEV_NULL so we're benchmarking the time the encoding takes, not the
     // time spent moving bytes around in buffers.
-    HTMLEscapingWriter w = new HTMLEscapingWriter(HTMLEscapingWriter.DEV_NULL);
-    try {
+    try (HTMLEscapingWriter w = new HTMLEscapingWriter(
+        HTMLEscapingWriter.DEV_NULL)) {
       for (int i = 0; i < n; ++i) {
         long t0 = System.nanoTime();
         for (int j = runs; --j >= 0;) {
@@ -414,8 +413,6 @@ public class BenchmarkEscapersTest extends TestCase {
         long t1 = System.nanoTime();
         times[i] = (t1 - t0) / 1000;
       }
-    } finally {
-      w.close();
     }
     return times;
   }

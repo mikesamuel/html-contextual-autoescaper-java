@@ -23,47 +23,42 @@ import java.util.Map;
 import junit.framework.ComparisonFailure;
 import junit.framework.TestCase;
 
-public class HTMLEscapingWriterTest extends TestCase {
-  private void assertWritten(String html, String outContext) throws Exception {
+@SuppressWarnings("javadoc")
+public final class HTMLEscapingWriterTest extends TestCase {
+  private static void assertWritten(String html, String outContext)
+      throws Exception {
     assertWritten(html, outContext, html);
   }
 
-  private void assertWritten(String html, String outContext, String normalized)
+  private static void assertWritten(
+      String html, String outContext, String normalized)
       throws Exception {
     {
       StringWriter sw = new StringWriter();
-      HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
-      try {
+      try (HTMLEscapingWriter w = new HTMLEscapingWriter(sw)) {
         w.writeSafe(html);
+        w.flush();
         assertEquals(outContext, Context.toString(w.getContext()));
         assertEquals(normalized, sw.toString());
-      } finally {
-        try {
-          w.close();
-        } catch (BadEndContextException ex) {
-          // Test inputs need not end in a valid end context.
-        }
+      } catch (@SuppressWarnings("unused") BadEndContextException ex) {
+        // Test inputs need not end in a valid end context.
       }
     }
     {
       StringWriter sw = new StringWriter();
-      HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
-      try {
+      try (HTMLEscapingWriter w = new HTMLEscapingWriter(sw)) {
         char[] chars = html.toCharArray();
         w.writeSafe(chars, 0, chars.length);
+        w.flush();
         assertEquals(outContext, Context.toString(w.getContext()));
         assertEquals(normalized, sw.toString());
-      } finally {
-        try {
-          w.close();
-        } catch (BadEndContextException ex) {
-          // Test inputs need not end in a valid end context.
-        }
+      } catch (@SuppressWarnings("unused") BadEndContextException ex) {
+        // Test inputs need not end in a valid end context.
       }
     }
   }
 
-  public final void testWriteSafe() throws Exception {
+  public static final void testWriteSafe() throws Exception {
     assertWritten(
         "",
         "Text"
@@ -650,7 +645,7 @@ public class HTMLEscapingWriterTest extends TestCase {
     this.put("SU", new SafeContentString("%3cCincinatti%3e", ContentType.URL));
   }};
 
-  private void assertTemplateOutput(String msg, String tmpl, String want)
+  private static void assertTemplateOutput(String msg, String tmpl, String want)
       throws Exception {
     assertTemplateOutput(msg, tmpl, want, want);
   }
@@ -669,7 +664,7 @@ public class HTMLEscapingWriterTest extends TestCase {
     ws[5].writeSafe(chars, 1, 1 + len);
   }
 
-  private void assertTemplateOutput(
+  private static void assertTemplateOutput(
       String msg, String tmpl, String wantHard, String wantSoft)
       throws Exception {
     // We want to test a number of implementations:
@@ -682,6 +677,7 @@ public class HTMLEscapingWriterTest extends TestCase {
         new StringWriter(tmpl.length() * 2),
         new StringWriter(tmpl.length() * 2),
     };
+    @SuppressWarnings("resource")  // All backed by in-memory buffers.
     HTMLEscapingWriter[] ws = new HTMLEscapingWriter[] {
         new HTMLEscapingWriter(bufs[0]),
         new HTMLEscapingWriter(bufs[1]),
@@ -770,7 +766,7 @@ public class HTMLEscapingWriterTest extends TestCase {
     assertEquals(msg + ":softchars", wantSoft, bufs[5].toString());
   }
 
-  public final void testSafeWriter() throws Exception {
+  public static final void testSafeWriter() throws Exception {
     assertTemplateOutput(
             "single value",
             "Hello, {{C}}!",
@@ -1376,8 +1372,10 @@ public class HTMLEscapingWriterTest extends TestCase {
             "<a href='data;base64:a&#43;b'>a+b</a>");
   }
 
-  private void assertErrorMsg(String html, String error) throws Exception {
+  private static void assertErrorMsg(String html, String error)
+      throws Exception {
     {
+      @SuppressWarnings("resource")  // Backed by in-memory buffer
       HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter());
       boolean closed = false;
       try {
@@ -1391,24 +1389,20 @@ public class HTMLEscapingWriterTest extends TestCase {
         if (!closed) {
           try {
             w.close();
-          } catch (BadEndContextException ex) {
+          } catch (@SuppressWarnings("unused") BadEndContextException ex) {
             // Test inputs need not end in a valid end context.
           }
         }
       }
     }
     // None of these error cases trigger exceptions when stripping tags.
-    {
-      HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter());
-      try {
-        w.stripTags(html, Context.Delim.DoubleQuote);
-      } finally {
-        w.close();
-      }
+    try (HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter())) {
+      w.stripTags(html, Context.Delim.DoubleQuote);
     }
     // Errors should be triggered regardless of whether the input is passed
     // as a String or a char[]
     {
+      @SuppressWarnings("resource")  // Backed by in-memory buffer
       HTMLEscapingWriter w = new HTMLEscapingWriter(new StringWriter());
       boolean closed = false;
       try {
@@ -1423,7 +1417,7 @@ public class HTMLEscapingWriterTest extends TestCase {
         if (!closed) {
           try {
             w.close();
-          } catch (BadEndContextException ex) {
+          } catch (@SuppressWarnings("unused") BadEndContextException ex) {
             // Test inputs need not end in a valid end context.
           }
         }
@@ -1435,7 +1429,7 @@ public class HTMLEscapingWriterTest extends TestCase {
    * Splitting an untrusted write into multiple trusted writes shouldn't affect
    * the resulting context or the normalized text.
    */
-  private void assertSplitInvariantHolds(
+  private static void assertSplitInvariantHolds(
       String expectedNormalizedOutput, int expectedEndContext, String... chunks)
   throws Exception {
     assertSplitInvariantHolds(
@@ -1444,7 +1438,7 @@ public class HTMLEscapingWriterTest extends TestCase {
         true, expectedNormalizedOutput, expectedEndContext, chunks);
   }
 
-  private void assertSplitInvariantHolds(
+  private static void assertSplitInvariantHolds(
       boolean memoizing,
       String expectedNormalizedOutput, int expectedEndContext, String... chunks)
   throws Exception {
@@ -1454,28 +1448,24 @@ public class HTMLEscapingWriterTest extends TestCase {
     StringBuilder whole = new StringBuilder();
 
     int chunkedEndContext;
-    HTMLEscapingWriter wChunked = memoizing
-        ? new MemoizingHTMLEscapingWriter(outChunked)
-        : new HTMLEscapingWriter(outChunked);
-    try {
+    try (
+        HTMLEscapingWriter wChunked = memoizing
+            ? new MemoizingHTMLEscapingWriter(outChunked)
+            : new HTMLEscapingWriter(outChunked)) {
       for (String chunk : chunks) {
         wChunked.writeSafe(chunk);
         whole.append(chunk);
       }
       chunkedEndContext = wChunked.getContext();
-    } finally {
-      wChunked.close();
     }
 
     int unchunkedEndContext;
-    HTMLEscapingWriter wUnchunked = memoizing
-        ? new MemoizingHTMLEscapingWriter(outUnchunked)
-        : new HTMLEscapingWriter(outUnchunked);
-    try {
+    try (
+        HTMLEscapingWriter wUnchunked = memoizing
+            ? new MemoizingHTMLEscapingWriter(outUnchunked)
+            : new HTMLEscapingWriter(outUnchunked)) {
       wUnchunked.writeSafe(whole.toString());
       unchunkedEndContext = wUnchunked.getContext();
-    } finally {
-      wUnchunked.close();
     }
 
     assertContextsEqual("chunked", expectedEndContext, chunkedEndContext);
@@ -1494,7 +1484,7 @@ public class HTMLEscapingWriterTest extends TestCase {
     }
   }
 
-  public final void testSplitInvariant() throws Exception {
+  public static final void testSplitInvariant() throws Exception {
     assertSplitInvariantHolds(
         "<html><i><b id=\"foo\"></b><b id=\"boo\"></b></i></html>",
         Context.TEXT,
@@ -1506,7 +1496,7 @@ public class HTMLEscapingWriterTest extends TestCase {
         "</b></i></html>");
   }
 
-  public final void testErrors() throws Exception {
+  public static final void testErrors() throws Exception {
     assertErrorMsg(
         // Missing quote.
         "<a href=\"bar>",
@@ -1559,7 +1549,7 @@ public class HTMLEscapingWriterTest extends TestCase {
     try {
       Float.parseFloat(s);
       return true;
-    } catch (NumberFormatException ex) {
+    } catch (@SuppressWarnings("unused") NumberFormatException ex) {
       return false;
     }
   }
@@ -1567,17 +1557,19 @@ public class HTMLEscapingWriterTest extends TestCase {
   private static Object parseAsNumber(String s) {
     try {
       return Integer.valueOf(s);
-    } catch (NumberFormatException ex) {
+    } catch (@SuppressWarnings("unused") NumberFormatException ex) {
       return Float.valueOf(s);
     }
   }
 
   static class BadMarshaler implements JSONMarshaler {
+    @Override
     public String toJSON() {
       return "{ foo: 'not quite valid JSON' }";
     }
   }
   static class GoodMarshaler implements JSONMarshaler {
+    @Override
     public String toJSON() {
       return "{ \"<foo>\": \"O'Reilly\" }";
     }

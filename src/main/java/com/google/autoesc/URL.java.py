@@ -38,15 +38,13 @@ class URL {
    */
   static void escapeOnto(boolean norm, Object o, Writer out)
       throws IOException {
-    String s;
     String safe = ContentType.URL.derefSafeContent(o);
     if (safe != null) {
-      s = safe;
-      norm = true;
+      escapeOnto(safe, 0, safe.length(), true, out);
     } else {
-      s = ReplacementTable.toString(o);
+      String s = ReplacementTable.toString(o);
+      escapeOnto(s, 0, s.length(), norm, out);
     }
-    escapeOnto(s, 0, s.length(), norm, out);
   }
 
   private static final boolean[] URL_NO_ENCODE = new boolean[127];
@@ -106,9 +104,11 @@ class URL {
    * escapeURLOnto normalizes (when norm is true) or escapes its input to
    * produce a valid hierarchical or opaque URL part.
    */
-  static void escapeOnto(String s, int off, int end, boolean norm, Writer out)
+  static void escapeOnto(
+      String s, int offset, int end, boolean norm, Writer out)
       throws IOException {
     boolean[] noEncode = norm ? NORM_URL_NO_ENCODE : URL_NO_ENCODE;
+    int off = offset;
     for (int i = off, nc; i < end; i += nc) {
       int cp = s.codePointAt(i);
       nc = Character.charCount(cp);

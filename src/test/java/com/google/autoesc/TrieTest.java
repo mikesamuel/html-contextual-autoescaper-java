@@ -16,8 +16,9 @@ package com.google.autoesc;
 
 import junit.framework.TestCase;
 
-public class TrieTest extends TestCase {
-  public final void testTrie() {
+@SuppressWarnings("javadoc")
+public final class TrieTest extends TestCase {
+  public static final void testTrie() {
     Trie<Integer> t = Trie.<Integer>builder()
         .put("one", 1).put("two", 2).put("three", 3)
         .build();

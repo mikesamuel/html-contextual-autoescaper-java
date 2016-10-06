@@ -18,8 +18,9 @@ import java.io.StringWriter;
 
 import junit.framework.TestCase;
 
-public class HTMLTest extends TestCase {
-  public final void testDecode() {
+@SuppressWarnings("javadoc")
+public final class HTMLTest extends TestCase {
+  public static final void testDecode() {
     assertEquals("", HTML.unescapeString("", 0, 0));
     assertEquals("foo", HTML.unescapeString("foo", 0, 3));
     assertEquals("fo", HTML.unescapeString("foo", 0, 2));
@@ -33,7 +34,7 @@ public class HTMLTest extends TestCase {
     assertEquals("\u00A1", HTML.unescapeString("&iexcl;", 0, 6));
   }
 
-  public final void testEscapeOnto() throws Exception {
+  public static final void testEscapeOnto() throws Exception {
     String input = (
         "\0\1\2\3\4\5\6\7\10\t\n\13\14\r\16\17" +
         "\20\21\22\23\24\25\26\27\30\31\32\33\34\35\36\37" +
@@ -66,7 +67,7 @@ public class HTMLTest extends TestCase {
     assertEquals(wantDecoded, decoded);
   }
 
-  public final void testNormalizeOnto() throws Exception {
+  public static final void testNormalizeOnto() throws Exception {
     String input = (
         "\0\1\2\3\4\5\6\7\10\t\n\13\14\r\16\17" +
         "\20\21\22\23\24\25\26\27\30\31\32\33\34\35\36\37" +
@@ -99,19 +100,16 @@ public class HTMLTest extends TestCase {
     assertEquals(wantDecoded, decoded);
   }
 
-  private void assertStrippedTags(String html, String htmlNoTags)
+  private static void assertStrippedTags(String html, String htmlNoTags)
       throws Exception {
     StringWriter buf = new StringWriter();
-    HTMLEscapingWriter w = new HTMLEscapingWriter(buf);
-    try {
+    try (HTMLEscapingWriter w = new HTMLEscapingWriter(buf)) {
       w.stripTags(html, Context.Delim.DoubleQuote);
       assertEquals(buf.toString(), htmlNoTags);
-    } finally {
-      w.close();
     }
   }
 
-  public final void testStripTags() throws Exception {
+  public static final void testStripTags() throws Exception {
     assertStrippedTags("", "");
     assertStrippedTags("Hello, World!", "Hello, World!");
     assertStrippedTags("foo&amp;bar", "foo&amp;bar");

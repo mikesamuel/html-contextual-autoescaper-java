@@ -17,9 +17,10 @@ package com.google.autoesc;
 import java.io.StringWriter;
 import junit.framework.TestCase;
 
-public class CSSTest extends TestCase {
+@SuppressWarnings("javadoc")
+public final class CSSTest extends TestCase {
 
-  public final void testIsCSSNmchar() throws Exception {
+  public static final void testIsCSSNmchar() {
     assertEquals(CSS.isCSSNmchar(0), false);
     assertEquals(CSS.isCSSNmchar('0'), true);
     assertEquals(CSS.isCSSNmchar('9'), true);
@@ -42,7 +43,7 @@ public class CSSTest extends TestCase {
     assertEquals(CSS.isCSSNmchar(0x110000), false);
   }
 
-  private void assertDecoded(String css, String want) throws Exception {
+  private static void assertDecoded(String css, String want) throws Exception {
     String decoded = CSS.decodeCSS(css, 0, css.length());
     assertEquals(want, decoded);
     assertEquals(want, CSS.decodeCSS("foo" + css + "bar", 3, 3 + css.length()));
@@ -54,7 +55,7 @@ public class CSSTest extends TestCase {
     assertEquals(want, CSS.decodeCSS(recoded, 0, recoded.length()));
   }
 
-  public final void testDecodeCSS() throws Exception {
+  public static final void testDecodeCSS() throws Exception {
     assertDecoded("", "");
     assertDecoded("foo", "foo");
     assertDecoded("foo\\", "foo");
@@ -85,7 +86,7 @@ public class CSSTest extends TestCase {
         "The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>");
   }
 
-  public final void testHexDecode() throws Exception {
+  public static final void testHexDecode() {
     for (int i = 0; i < 0x200000; i += 101) {  // coprime with 16
       String s = Integer.toString(i, 16);
       assertEquals(i, CSS.hexDecode(s, 0, s.length()));
@@ -94,13 +95,13 @@ public class CSSTest extends TestCase {
     }
   }
 
-  private void assertSkipSpace(String css, String skipped) {
+  private static void assertSkipSpace(String css, String skipped) {
     String padded = "  " + css + "  ";
     int x = CSS.skipCSSSpace(padded, 2, css.length() + 2);
     assertEquals(css, skipped, padded.substring(x, css.length() + 2));
   }
 
-  public final void testSkipCSSSpace() throws Exception {
+  public static final void testSkipCSSSpace() {
     assertSkipSpace("", "");
     assertSkipSpace("foo", "foo");
     assertSkipSpace("\n", "");
@@ -114,7 +115,7 @@ public class CSSTest extends TestCase {
     assertSkipSpace("\\20", "\\20");
   }
 
-  public final void testCSSEscaper() throws Exception {
+  public static final void testCSSEscaper() throws Exception {
     String input = (
         "\0\1\2\3\4\5\6\7\10\t\n\13\14\r\16\17" +
         "\20\21\22\23\24\25\26\27\30\31\32\33\34\35\36\37" +
@@ -142,14 +143,14 @@ public class CSSTest extends TestCase {
     assertEquals(want, buf.toString());
   }
 
-  private void assertFilteredValue(String css, String filtered)
+  private static void assertFilteredValue(String css, String filtered)
       throws Exception {
     StringWriter buf = new StringWriter();
     CSS.filterValueOnto(css, buf);
     assertEquals(filtered, buf.toString());
   }
 
-  public final void testCSSValueFilter() throws Exception {
+  public static final void testCSSValueFilter() throws Exception {
     assertFilteredValue("", "");
     assertFilteredValue("foo", "foo");
     assertFilteredValue("0", "0");

@@ -16,8 +16,9 @@ package com.google.autoesc;
 
 import junit.framework.TestCase;
 
-public class CharsUtilTest extends TestCase {
-  public final void testCharAt() {
+@SuppressWarnings("javadoc")
+public final class CharsUtilTest extends TestCase {
+  public static final void testCharAt() {
     char[] chars = "Hello\ud800\udc00".toCharArray();
     assertEquals('H', CharsUtil.charAt(chars, 0));
     assertEquals('e', CharsUtil.charAt(chars, 1));
@@ -27,7 +28,7 @@ public class CharsUtilTest extends TestCase {
     assertEquals((char) 0xd800, CharsUtil.charAt(chars, 5));
   }
 
-  public final void testCodePointAt() {
+  public static final void testCodePointAt() {
     char[] chars = "Hello\ud800\udc00".toCharArray();
     assertEquals('H', CharsUtil.codePointAt(chars, 0));
     assertEquals('e', CharsUtil.codePointAt(chars, 1));
@@ -37,7 +38,7 @@ public class CharsUtilTest extends TestCase {
     assertEquals(0x10000, CharsUtil.codePointAt(chars, 5));
   }
 
-  public final void testFindHtmlCommentEnd() {
+  public static final void testFindHtmlCommentEnd() {
     String s1 = "foo-->bar--> baz -->";
     char[] s2 = s1.toCharArray();
     int n = s1.length();
@@ -63,7 +64,7 @@ public class CharsUtilTest extends TestCase {
     }
   }
 
-  public final void testFindEndTag() {
+  public static final void testFindEndTag() {
     String s1 = "foo</bar </baz</";
     char[] s2 = s1.toCharArray();
     int n = s1.length();
@@ -84,7 +85,7 @@ public class CharsUtilTest extends TestCase {
     }
   }
 
-  private void assertStartsWithOne(
+  private static void assertStartsWithOne(
       boolean golden, boolean ignoreCase, String s, int off, int end,
       String prefix) {
     char[] s2 = s.toCharArray();
@@ -103,7 +104,8 @@ public class CharsUtilTest extends TestCase {
     }
   }
 
-  private void assertStartsWith(boolean golden, String s, String prefix) {
+  private static void assertStartsWith(
+      boolean golden, String s, String prefix) {
     String ucase = s.toUpperCase();
     assertStartsWithOne(golden, false, s, 0, s.length(), prefix);
     assertStartsWithOne(golden, false, " " + s, 1, s.length() + 1, prefix);
@@ -121,7 +123,7 @@ public class CharsUtilTest extends TestCase {
     assertStartsWithOne(golden, true, s + " ", 0, s.length(), prefix);
   }
 
-  public final void testStartsWith() {
+  public static final void testStartsWith() {
     assertStartsWith(true, "", "");
     assertStartsWith(true, "foo", "");
     assertStartsWith(true, "foo", "f");
@@ -136,7 +138,7 @@ public class CharsUtilTest extends TestCase {
     assertStartsWith(false, "foo", " foo");
   }
 
-  public final void testContainsIgnoreCase() {
+  public static final void testContainsIgnoreCase() {
     String s = "foobarbazfooboooicks";
     char[] s2 = s.toCharArray();
     String t = "foob";
@@ -171,7 +173,7 @@ public class CharsUtilTest extends TestCase {
     }
   }
 
-  public final void testLcase() {
+  public static final void testLcase() {
     assertEquals('0', CharsUtil.lcase('0'));
     assertEquals('9', CharsUtil.lcase('9'));
     assertEquals('@', CharsUtil.lcase('@'));
@@ -184,7 +186,7 @@ public class CharsUtilTest extends TestCase {
     assertEquals('{', CharsUtil.lcase('{'));
   }
 
-  public final void testAppend() {
+  public static final void testAppend() {
     StringBuilder sb = new StringBuilder();
     CharsUtil.append(sb, "food", 1, 3);
     CharsUtil.append(sb, new char[] { 'f', 'o', 'o', 'd' }, 1, 3);

@@ -30,30 +30,27 @@ import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
+@SuppressWarnings("javadoc")
 @RunWith(org.junit.runners.AllTests.class)
 public class AllTests {
 
   public static Test suite() {
-    List<String> allTests = new ArrayList<String>();
+    List<String> allTests = new ArrayList<>();
 
-    {
-      InputStream in = AllTests.class.getResourceAsStream("alltests");
-      if (in == null) {
-        throw new AssertionError("Failed to load list of tests");
-      }
-      try {
-        BufferedReader r = new BufferedReader(
-            new InputStreamReader(in, "UTF-8"));
-        try {
+    try {
+      try (InputStream in = AllTests.class.getResourceAsStream("alltests")) {
+        if (in == null) {
+          throw new AssertionError("Failed to load list of tests");
+        }
+        try (BufferedReader r =
+                 new BufferedReader(new InputStreamReader(in, "UTF-8"))) {
           for (String line; (line = r.readLine()) != null;) {
             allTests.add(line);
           }
-        } finally {
-          r.close();
         }
-      } catch (IOException ex) {
-        throw new RuntimeException(ex);
       }
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
     }
 
     // If test.nodeps is specified, run only the tests that do not depend on
@@ -77,7 +74,7 @@ public class AllTests {
     return suite;
   }
 
-  private static final Set<String> REQUIRE_DEPENDENCIES = new HashSet<String>(
+  private static final Set<String> REQUIRE_DEPENDENCIES = new HashSet<>(
       Arrays.asList(
           // Depends on JSDK.
           "com.google.autoesc.AppEngineTestbedTest",

@@ -91,15 +91,16 @@ class XML {
    * starts or ends with a prefix or suffix thereof in which case it splits the
    * CDATA section around that chunk and resumes on the other side:
    * {@code "foo]]>bar"} &rarr; {@code "foo]]]]><![CDATA[>bar"}.
-   * Any buggy regex based XML parsers that allow CDATA sections to contain 
+   * Any buggy regex based XML parsers that allow CDATA sections to contain
    * {@code "]]>"} by using surrounding tags as boundaries (e.g. looking for
    * {@code /<tag><!\[CDATA\[(.*?)\]\]><\/tag>/} can simply remove all
    * all occurrences of {@code "]]><![CDATA["}.
    */
-  static void escapeCDATAOnto(String s, int off, int end, Writer out)
+  static void escapeCDATAOnto(String s, int offset, int end, Writer out)
       throws IOException {
-    if (off >= end) { return; }
+    if (offset >= end) { return; }
 
+    int off = offset;
     // Elide all NULs which are not strictly allowed in XML.
     for (int i = off; i < end; ++i) {
       if (s.charAt(i) == 0) {

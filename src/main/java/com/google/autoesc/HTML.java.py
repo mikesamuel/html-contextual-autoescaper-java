@@ -40,7 +40,8 @@ class HTML {
    * Returns s[off:end] as a string but with any entitied decoded
    * or null if no decoding needed.
    */
-  static @Nullable String maybeUnescape(String s, int off, int end) {
+  static @Nullable String maybeUnescape(String s, int offset, int end) {
+    int off = offset;
     int amp = off;
     while (amp < end && s.charAt(amp) != '&') { ++amp; }
     if (amp == end) {

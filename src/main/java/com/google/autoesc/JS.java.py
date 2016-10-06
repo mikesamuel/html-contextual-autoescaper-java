@@ -64,32 +64,33 @@ class JS {
    *    when there are no tokens on the end of s.
    */
   static int nextJSCtx(String s, int off, int end, int precJSCtx) {
-    while (end > off) {
-      char ch = s.charAt(end - 1);
+    int e = end;
+    while (e > off) {
+      char ch = s.charAt(e - 1);
       switch (ch) {
         case '\t': case '\n': case '\r': case ' ':
         case '\u2028': case '\u2029':
-          --end;
+          --e;
           continue;
       }
       break;
     }
-    if (off == end) {
+    if (off == e) {
       return precJSCtx;
     }
 
     // All cases below are in the single-byte UTF-8 group.
-    char c = s.charAt(end - 1);
+    char c = s.charAt(e - 1);
     switch (c) {
       case '+': case '-':
         // ++ and -- are not regexp preceders, but + and - are whether
         // they are used as infix or prefix operators.
-        int start = end - 1;
+        int start = e - 1;
         // Count the number of adjacent dashes or pluses.
         while (start > off && s.charAt(start-1) == c) {
           start--;
         }
-        if (((end - start) & 1) == 1) {
+        if (((e - start) & 1) == 1) {
           // Reached for trailing minus signs since "---" is the
           // same as "-- -".
           return Context.JSCtx.Regexp;
@@ -97,7 +98,7 @@ class JS {
         return Context.JSCtx.DivOp;
       case '.':
         // Handle "42."
-        if (end-off >= 2 && '0' <= s.charAt(end-2) && s.charAt(end-2) <= '9') {
+        if (e-off >= 2 && '0' <= s.charAt(e-2) && s.charAt(e-2) <= '9') {
           return Context.JSCtx.DivOp;
         }
         return Context.JSCtx.Regexp;
@@ -134,11 +135,11 @@ class JS {
       default:
         // Look for an IdentifierName and see if it is a keyword that
         // can precede a regular expression.
-        int j = end;
+        int j = e;
         while (j > off && isJSIdentPart(s.charAt(j - 1))) {
           j--;
         }
-        if (isRegexpPrecederKeyword(s, j, end)) {
+        if (isRegexpPrecederKeyword(s, j, e)) {
           return Context.JSCtx.Regexp;
         }
         // Otherwise is a punctuator not listed above, or
@@ -348,9 +349,10 @@ class JSValueEscaper {
     return " /* json: " + problemText.replace("*", "* ") + " */ null ";
   }
 
-  void escape(@Nullable Object o, boolean protectBoundaries)
+  void escape(@Nullable Object obj, boolean protectBoundaries)
       throws IOException {
     // Escape maps and collections to java object and array constructors.
+    Object o = obj;
     if (o == null || (seen != null && seen.containsKey(o))) {
       // We surround keyword and numeric values with spaces so they do not
       // merge into other tokens.
@@ -451,7 +453,7 @@ class JSValueEscaper {
   }
 
   private void markSeen(Object o) {
-    if (seen == null) { seen = new IdentityHashMap<Object, Object>(); }
+    if (seen == null) { seen = new IdentityHashMap<>(); }
     seen.put(o, null);
   }
 
@@ -498,7 +500,7 @@ class JSValueEscaper {
         // TODO: same caveats to check as above.
         throw (AssertionError)
             new AssertionError(name + " of " + o.getClass()).initCause(e);
-      } catch (InvocationTargetException e) {
+      } catch (@SuppressWarnings("unused") InvocationTargetException e) {
         // Getter failed.  Treat as a non-existant property.
         continue;
       }
@@ -600,14 +602,14 @@ class ClassSchema {
 
   private ClassSchema(Class<?> c) {
     this.className = c.getName();
-    List<Field> fields = new ArrayList<Field>();
-    List<Method> getters = new ArrayList<Method>();
-    Set<String> names = new HashSet<String>();
+    List<Field> fieldList = new ArrayList<>();
+    List<Method> getterList = new ArrayList<>();
+    Set<String> names = new HashSet<>();
     for (Field f : c.getFields()) {
       int mods = f.getModifiers();
       if (Modifier.isPublic(mods) && !Modifier.isStatic(mods)
           && !Modifier.isVolatile(mods) && names.add(f.getName())) {
-        fields.add(f);
+        fieldList.add(f);
       }
     }
     for (Method m : c.getMethods()) {
@@ -621,25 +623,27 @@ class ClassSchema {
         continue;
       }
       if (names.add(methodNameToFieldName(name))) {
-        getters.add(m);
+        getterList.add(m);
       }
     }
-    this.fields = fields.toArray(new Field[fields.size()]);
+    this.fields = fieldList.toArray(new Field[fieldList.size()]);
     // TODO: Create one comparator for members and make it singleton.
     // TODO: Find a JSR305 annotation or something similar to exempt fields
     // from serialization.  Maybe JPA @javax.persistence.Transient.
     Arrays.sort(this.fields, new Comparator<Field>() {
+        @Override
         public int compare(Field a, Field b) {
           return a.getName().compareTo(b.getName());
         }
       });
-    this.getters = getters.toArray(new Method[getters.size()]);
+    this.getters = getterList.toArray(new Method[getterList.size()]);
     Arrays.sort(this.getters, new Comparator<Method>() {
+        @Override
         public int compare(Method a, Method b) {
           return a.getName().compareTo(b.getName());
         }
       });
-    this.getterFieldNames = new String[getters.size()];
+    this.getterFieldNames = new String[this.getters.length];
     for (int i = 0; i < this.getters.length; ++i) {
       this.getterFieldNames[i] = methodNameToFieldName(
           this.getters[i].getName());

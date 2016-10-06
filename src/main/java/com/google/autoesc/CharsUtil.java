@@ -76,9 +76,10 @@ final class CharsUtil {
   }
 
   /** True iff s[off:end] starts with t. */
-  static boolean startsWith(String s, int off, int end, String t) {
+  static boolean startsWith(String s, int offset, int end, String t) {
     int n = t.length();
-    if (end - off < n) { return false; }
+    if (end - offset < n) { return false; }
+    int off = offset;
     for (int i = 0; i < n; ++off, ++i) {
       if (s.charAt(off) != t.charAt(i)) { return false; }
     }
@@ -86,9 +87,10 @@ final class CharsUtil {
   }
 
   /** True iff s[off:end] starts with t. */
-  static boolean startsWith(char[] s, int off, int end, String t) {
+  static boolean startsWith(char[] s, int offset, int end, String t) {
     int n = t.length();
-    if (end - off < n) { return false; }
+    if (end - offset < n) { return false; }
+    int off = offset;
     for (int i = 0; i < n; ++off, ++i) {
       if (s[off] != t.charAt(i)) { return false; }
     }
@@ -100,9 +102,10 @@ final class CharsUtil {
    * lower-case string.
    */
   static boolean startsWithIgnoreCase(
-      String s, int off, int end, String lowerCase) {
+      String s, int offset, int end, String lowerCase) {
     int n = lowerCase.length();
-    if (end - off < n) { return false; }
+    if (end - offset < n) { return false; }
+    int off = offset;
     for (int i = 0; i < n; ++off, ++i) {
       if (lcase(s.charAt(off)) != lowerCase.charAt(i)) { return false; }
     }
@@ -114,9 +117,10 @@ final class CharsUtil {
    * lower-case string.
    */
   static boolean startsWithIgnoreCase(
-      char[] s, int off, int end, String lowerCase) {
+      char[] s, int offset, int end, String lowerCase) {
     int n = lowerCase.length();
-    if (end - off < n) { return false; }
+    if (end - offset < n) { return false; }
+    int off = offset;
     for (int i = 0; i < n; ++off, ++i) {
       if (lcase(s[off]) != lowerCase.charAt(i)) { return false; }
     }
@@ -186,8 +190,7 @@ final class CharsUtil {
 
   /** Returns ch or the lower-case equivalent if ch is in ['A'..'Z']. */
   static char lcase(char ch) {
-    if ('A' <= ch && ch <= 'Z') { ch |= 32; }
-    return ch;
+    return 'A' <= ch && ch <= 'Z' ? (char) (ch | 32) : ch;
   }
 
   /** Appends s[off:end] to sb. */

@@ -60,6 +60,9 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
       : null;
   }
 
+  /**
+   * @param out receives autoescaped HTML.
+   */
   public MemoizingHTMLEscapingWriter(Writer out) {
     super(out);
   }
@@ -110,6 +113,7 @@ public class MemoizingHTMLEscapingWriter extends HTMLEscapingWriter {
       if (value == null) {
         StringWriter normalizedSafeContent = new StringWriter(
             safeContent.length() + 16);
+        @SuppressWarnings("resource")  // Not allocated here
         Writer oout = getWriter();
         replaceWriter(normalizedSafeContent);
         super.writeSafe(safeContent);

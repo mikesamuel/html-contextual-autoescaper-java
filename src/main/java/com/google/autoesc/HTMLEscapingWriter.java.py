@@ -85,6 +85,7 @@ public class HTMLEscapingWriter extends Writer {
    */
   private StringBuilder unsafeBuffered = new StringBuilder();
 
+  /** */
   public HTMLEscapingWriter(Writer out) {
     this.underlying = this.out = out;
     this.context = Context.TEXT;
@@ -99,11 +100,11 @@ public class HTMLEscapingWriter extends Writer {
   public void close() throws IOException, TemplateException {
     flush();
     out.close();
-    int context = this.context;
+    int contextBeforeClose = this.context;
     releaseOnClose();
-    if (state(context) != Context.State.Text) {
+    if (state(contextBeforeClose) != Context.State.Text) {
       throw new BadEndContextException("Incomplete document fragment ended in "
-          + Context.toString(context));
+          + Context.toString(contextBeforeClose));
     }
   }
 
@@ -144,21 +145,20 @@ public class HTMLEscapingWriter extends Writer {
    * be converted from one type to another.
    *
    * @param s content from a trusted source like a trusted template author.
-   * @param off the index into s at which to start.
+   * @param offset the index into s at which to start.
    * @param end the index into s at which to stop.
    */
-  public void writeSafe(String s, int off, int end)
+  public void writeSafe(String s, int offset, int end)
       throws IOException, TemplateException {
     flush();
-    while (off < end) {
+    for (int off = offset, noff; off < end; off = noff) {
       int oc = context;
-      int noff = writeChunk(s, off, end);
+      noff = writeChunk(s, off, end);
       // Die early on infinite loops.
       assert !(noff < off || (noff == off && state(oc) == state(context))):
           "off=" + off + ", noff=" + noff
           + ", context=" + Context.toString(oc)
           + " -> " + Context.toString(context);
-      off = noff;
     }
   }
 
@@ -284,7 +284,7 @@ public class HTMLEscapingWriter extends Writer {
         out = underlying;
         try {
           stripTags(safe, delim(context));
-        } catch (TemplateException ex) {
+        } catch (@SuppressWarnings("unused") TemplateException ex) {
           // It's OK to truncate the content here since it is plain text and
           // already normalized as an attribute.
         }
@@ -334,8 +334,9 @@ public class HTMLEscapingWriter extends Writer {
    * and code execution properties.
    */
   @VisibleForTesting
-  void writeUnsafe(String s, int off, int end, Escaper esc)
+  void writeUnsafe(String s, int offset, int end, Escaper esc)
       throws IOException, TemplateException {
+    int off = offset;
     // Choose an escaper appropriate to the context.
     switch (esc) {
     case ELIDE: return;
@@ -539,12 +540,13 @@ public class HTMLEscapingWriter extends Writer {
    * This method establishes the calling convention used below where
    * s[off:end] is the portion of the string being processed.
    *
-   * @param off the offset into s to start writing.
+   * @param offset the offset into s to start writing.
    * @param end the end into s of the chunk to write.
    * @return the offset of the remaining unprocessed portion.
    */
-  private int writeChunk(String s, int off, int end)
+  private int writeChunk(String s, int offset, int end)
       throws IOException, TemplateException {
+    int off = offset;
     if (delim(context) == Context.Delim.None) {
       int i = findSpecialTagEnd(s, off, end);
       if (i != -1) {
@@ -691,7 +693,8 @@ public class HTMLEscapingWriter extends Writer {
   }
 
   /** tText is the context transition function for the text state. */
-  private int tText(String s, int off, int end) throws IOException {
+  private int tText(String s, int offset, int end) throws IOException {
+    int off = offset;
     while (true) {
       int lt = off;
       while (lt < end && s.charAt(lt) != '<') { ++lt; }
@@ -1007,7 +1010,8 @@ public class HTMLEscapingWriter extends Writer {
   }
 
   /** tBeforeValue is the context transition function for stateBeforeValue. */
-  private int tBeforeValue(String s, int off, int end) throws IOException {
+  private int tBeforeValue(String s, int offset, int end) throws IOException {
+    int off = offset;
     int i = eatWhiteSpace(s, off, end);
     if (i == end) {
       emit(s, off, end);
@@ -1071,9 +1075,10 @@ public class HTMLEscapingWriter extends Writer {
    *   {@link Context.Element element(context)} in s between off and end
    *   or -1 if not found.
    */
-  private int findSpecialTagEnd(String s, int off, int end) {
+  private int findSpecialTagEnd(String s, int offset, int end) {
     int el = element(context);
     if (el != Context.Element.None) {
+      int off = offset;
       for (int i = off; (i = CharsUtil.findEndTag(s, off, end) + 2) != 1;
            off = i) {
         int j = eatTagName(s, i, end);
@@ -1170,15 +1175,18 @@ public class HTMLEscapingWriter extends Writer {
   private static int nextURLContext(String s, int off, int end, int context) {
     int i = off;
     while (i < end && s.charAt(i) != '#' && s.charAt(i) != '?') { ++i; }
+    int nextContext;
     if (i < end) {
-      context = urlPart(context, Context.URLPart.QueryOrFrag);
+      nextContext = urlPart(context, Context.URLPart.QueryOrFrag);
     } else if (urlPart(context) == Context.URLPart.None
                && end != eatWhiteSpace(s, off, end)) {
       // HTML5 uses "Valid URL potentially surrounded by spaces" for
       // attrs: http://www.w3.org/TR/html5/index.html#attributes-1
-      context = urlPart(context, Context.URLPart.PreQuery);
+      nextContext = urlPart(context, Context.URLPart.PreQuery);
+    } else {
+      nextContext = context;
     }
-    return context;
+    return nextContext;
   }
 
   /** tJS is the context transition function for the JS state. */
@@ -1232,9 +1240,10 @@ public class HTMLEscapingWriter extends Writer {
    * tJSDelimited is the context transition function for the JS string and
    * regexp states.
    */
-  private int tJSDelimited(String s, int off, int end)
+  private int tJSDelimited(String s, int offset, int end)
       throws IOException, TemplateException {
     boolean inCharset = false;
+    int off = offset;
     while (true) {
       int i = off;
       switch (state(context)) {
@@ -1358,7 +1367,7 @@ public class HTMLEscapingWriter extends Writer {
   }
 
   /** tCSS is the context transition function for the CSS state. */
-  private int tCSS(String s, int off, int end) throws IOException {
+  private int tCSS(String s, int offset, int end) throws IOException {
     // CSS quoted strings are almost never used except for:
     // (1) URLs as in background: "/foo.png"
     // (2) Multiword font-names as in font-family: "Times New Roman"
@@ -1386,6 +1395,7 @@ public class HTMLEscapingWriter extends Writer {
     // have the attribute name available if our conservative assumption
     // proves problematic for real code.
 
+    int off = offset;
     for (;;) {
       int i = off;
       for (; i < end; ++i) {
@@ -1454,8 +1464,9 @@ public class HTMLEscapingWriter extends Writer {
    * tCSSStr is the context transition function for the CSS string and URL
    * states.
    */
-  private int tCSSStr(String s, int off, int end)
+  private int tCSSStr(String s, int offset, int end)
       throws IOException, TemplateException {
+    int off = offset;
     for (;;) {
       int i = off;
       switch (state(context)) {
@@ -1509,7 +1520,8 @@ public class HTMLEscapingWriter extends Writer {
   }
 
   /** tXML is the context transition function for the XML text node state. */
-  private int tXML(String s, int off, int end) throws IOException {
+  private int tXML(String s, int offset, int end) throws IOException {
+    int off = offset;
     while (true) {
       int lt = off;
       while (lt < end && s.charAt(lt) != '<') { ++lt; }
@@ -1564,7 +1576,8 @@ public class HTMLEscapingWriter extends Writer {
    * attribute name, such as encountering a quote mark without a preceding
    * equals sign.
    */
-  private int eatAttrName(String s, int off, int end) throws TemplateException {
+  private static int eatAttrName(String s, int off, int end)
+      throws TemplateException {
     for (int j = off; j < end; ++j) {
       switch (s.charAt(j)) {
         case ' ': case '\t': case '\n': case '\f': case '\r': case '=':
@@ -1646,23 +1659,23 @@ public class HTMLEscapingWriter extends Writer {
   /**
    * @param pos the index of the problem in s.
    */
-  private TemplateException makeTemplateException(
+  private static TemplateException makeTemplateException(
       String s, int off, int pos, int end, String msg) {
-    msg = new StringBuilder(msg.length() + end - off + 1)
+    String fullMessage = new StringBuilder(msg.length() + end - off + 1)
         .append(msg).append(s, off, pos).append('^')
         .append(s, pos, end).toString();
-    return new TemplateException(msg);
+    return new TemplateException(fullMessage);
   }
 
   /**
    * @param pos the index of the problem in s.
    */
-  private TemplateException makeTemplateException(
+  private static TemplateException makeTemplateException(
       char[] s, int off, int pos, int end, String msg) {
-    msg = new StringBuilder(msg.length() + end - off + 1)
+    String fullMessage = new StringBuilder(msg.length() + end - off + 1)
         .append(msg).append(s, off, pos - off).append('^')
         .append(s, pos, end - pos).toString();
-    return new TemplateException(msg);
+    return new TemplateException(fullMessage);
   }
 
   /**
@@ -1769,7 +1782,7 @@ public class HTMLEscapingWriter extends Writer {
   }
   Writer getWriter() { return this.out; }
   ReplacementTable getRtable() { return rtable; }
-  void replaceWriter(Writer out) { this.out = out; }
+  void replaceWriter(Writer newOut) { this.out = newOut; }
 
   private static final int INVALID_CONTEXT_CLOSED = -1;
 }

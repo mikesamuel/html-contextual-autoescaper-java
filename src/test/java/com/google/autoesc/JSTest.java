@@ -27,8 +27,9 @@ import java.util.TimeZone;
 
 import junit.framework.TestCase;
 
+@SuppressWarnings("javadoc")
 public final class JSTest extends TestCase {
-  private void assertNextJSCtx(int wantedJSCtx, String tokens) {
+  private static void assertNextJSCtx(int wantedJSCtx, String tokens) {
     assertEquals(
         wantedJSCtx,
         JS.nextJSCtx(tokens, 0, tokens.length(), Context.JSCtx.Regexp));
@@ -53,7 +54,7 @@ public final class JSTest extends TestCase {
                      Context.JSCtx.DivOp));
   }
 
-  public final void testNextJSCtx() throws Exception {
+  public static final void testNextJSCtx() {
     // Statement terminators precede regexps.
     assertNextJSCtx(Context.JSCtx.Regexp, ";");
     // This is not airtight.
@@ -127,7 +128,8 @@ public final class JSTest extends TestCase {
                  JS.nextJSCtx("   ", 0, 3, Context.JSCtx.DivOp));
   }
 
-  private void assertEscapedValue(Object val, String want) throws Exception {
+  private static void assertEscapedValue(Object val, String want)
+      throws Exception {
     {
       StringWriter buf = new StringWriter();
       JS.escapeValueOnto(val, buf);
@@ -170,7 +172,7 @@ public final class JSTest extends TestCase {
     assertEscapedValue("\r\n\u2028\u2029", "'\\r\\n\\u2028\\u2029'");
     // "\v" == "v" on IE 6 so use "\x0b" instead.
     assertEscapedValue("\t\u000b", "'\\t\\x0b'");
-    Map<String, Integer> m = new LinkedHashMap<String, Integer>();
+    Map<String, Integer> m = new LinkedHashMap<>();
     m.put("X", 1);
     m.put("Y", 2);
     m.put("Z", null);
@@ -224,18 +226,18 @@ public final class JSTest extends TestCase {
         "{'x':17,'class':'" + BrokenBean.class + "'}");
   }
 
-  private String jsStr(String s) throws Exception {
+  private static String jsStr(String s) throws Exception {
     StringWriter buf = new StringWriter();
     JS.escapeStrOnto(s, buf);
     return buf.toString();
   }
 
-  private void assertEscapedStrChars(String plainText, String jsStrChars)
+  private static void assertEscapedStrChars(String plainText, String jsStrChars)
       throws Exception {
     assertEquals(jsStrChars, jsStr(plainText));
   }
 
-  public final void testJSStrEscaper() throws Exception {
+  public static final void testJSStrEscaper() throws Exception {
     assertEscapedStrChars("", "");
     assertEscapedStrChars("foo", "foo");
     assertEscapedStrChars("\u0000", "\\0");
@@ -276,18 +278,18 @@ public final class JSTest extends TestCase {
     assertEscapedStrChars("foo\u00A0bar", "foo\u00A0bar");
   }
 
-  private String jsRegexp(String s) throws Exception {
+  private static String jsRegexp(String s) throws Exception {
     StringWriter buf = new StringWriter();
     JS.escapeRegexpOnto(s, buf);
     return buf.toString();
   }
 
-  private void assertEscapedRegexpChars(String plainText, String jsChars)
+  private static void assertEscapedRegexpChars(String plainText, String jsChars)
       throws Exception {
     assertEquals(jsChars, jsRegexp(plainText));
   }
 
-  public final void testJSRegexpEscaper() throws Exception {
+  public static final void testJSRegexpEscaper() throws Exception {
     assertEscapedRegexpChars("", "(?:)");
     assertEscapedRegexpChars("foo", "foo");
     assertEscapedRegexpChars("\u0000", "\\0");
@@ -319,7 +321,7 @@ public final class JSTest extends TestCase {
     assertEscapedRegexpChars("x^y", "x\\^y");
   }
 
-  public final void testEscapersOnLower7AndSelectHighCodepoints()
+  public static final void testEscapersOnLower7AndSelectHighCodepoints()
       throws Exception {
     String input = (
         "\0\1\2\3\4\5\6\7\10\t\n\13\14\r\16\17" +
@@ -358,7 +360,7 @@ public final class JSTest extends TestCase {
         jsRegexp(input));
   }
 
-  public final void testIsRegexpPrecederKeyword() {
+  public static final void testIsRegexpPrecederKeyword() {
     String[] kws = new String[] {
         "break", "case", "continue", "delete", "do", "else", "finally", "in",
         "instanceof", "return", "throw", "try", "typeof", "void",
@@ -403,6 +405,7 @@ public final class JSTest extends TestCase {
   }
 
   public static class CyclicBean {
+    @SuppressWarnings("static-method")
     public String getFoo() { return "bar"; }
     public CyclicBean getSelf() { return this; }
   }
@@ -419,6 +422,7 @@ public final class JSTest extends TestCase {
     public int x = 17;
 
     public int getX() { return -x; }
+    @SuppressWarnings("static-method")
     public int getFailure() { throw new RuntimeException("no int for you"); }
   }
 }

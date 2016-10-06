@@ -20,10 +20,17 @@ package com.google.autoesc;
  */
 public class BadEndContextException extends TemplateException {
 
+  private static final long serialVersionUID = 1L;
+
+  /**
+   * Uses a textual description of the context as a message.
+   * @param context a bit-packed context
+   */
   public BadEndContextException(int context) {
     this(Context.toString(context));
   }
 
+  /** @see TemplateException#TemplateException(String) */
   public BadEndContextException(String msg) { super(msg); }
 
 }

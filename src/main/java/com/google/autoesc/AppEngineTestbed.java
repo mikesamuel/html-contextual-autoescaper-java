@@ -72,38 +72,40 @@ public class AppEngineTestbed extends HttpServlet {
       try {
         Object json = new JSONParser(inp).parse();
         StringWriter buf = new StringWriter();
-        MemoizingHTMLEscapingWriter w = new MemoizingHTMLEscapingWriter(buf);
-        Matcher m = HOLE.matcher(src);
-        int pos = 0;
-        while (m.find()) {
-          w.writeSafe(src.substring(pos, m.start()));
-          pos = m.end();
-          String key = m.group(1).trim();
-          Object value = json;
-          int keylen = key.length();
-          for (int dot = 0, nextdot = 1; nextdot != keylen; dot = nextdot) {
-            nextdot = key.indexOf(".", dot+1);
-            if (nextdot == -1) { nextdot = keylen; }
-            String prop = key.substring(dot+1, nextdot).trim();
-            if (value instanceof Map<?, ?>) {
-              value = ((Map<?, ?>) value).get(prop);
-            } else if (value instanceof List<?>) {
-              try {
-                int i = Integer.parseInt(prop);
-                value = ((List<?>) value).get(i);
-              } catch (NumberFormatException ex) {
-                value = null;
-              } catch (IndexOutOfBoundsException ex) {
+        try (MemoizingHTMLEscapingWriter w =
+                 new MemoizingHTMLEscapingWriter(buf)) {
+          Matcher m = HOLE.matcher(src);
+          int pos = 0;
+          while (m.find()) {
+            w.writeSafe(src.substring(pos, m.start()));
+            pos = m.end();
+            String key = m.group(1).trim();
+            Object value = json;
+            int keylen = key.length();
+            for (int dot = 0, nextdot = 1; nextdot != keylen; dot = nextdot) {
+              nextdot = key.indexOf(".", dot+1);
+              if (nextdot == -1) { nextdot = keylen; }
+              String prop = key.substring(dot+1, nextdot).trim();
+              if (value instanceof Map<?, ?>) {
+                value = ((Map<?, ?>) value).get(prop);
+              } else if (value instanceof List<?>) {
+                try {
+                  int i = Integer.parseInt(prop);
+                  value = ((List<?>) value).get(i);
+                } catch (@SuppressWarnings("unused") NumberFormatException ex) {
+                  value = null;
+                } catch (@SuppressWarnings("unused")
+                IndexOutOfBoundsException ex) {
+                  value = null;
+                }
+              } else {
                 value = null;
               }
-            } else {
-              value = null;
             }
+            w.write(value);
           }
-          w.write(value);
+          w.writeSafe(src.substring(pos));
         }
-        w.writeSafe(src.substring(pos));
-        w.close();
         result = buf.toString();
       } catch (Exception ex) {
         error = ex.toString();
@@ -111,15 +113,19 @@ public class AppEngineTestbed extends HttpServlet {
       }
     }
 
-    if (src == null) { src = SAMPLE_SRC; }
-    if (inp == null) { inp = SAMPLE_INPUT; }
+    String finalSrc = src != null ? src : SAMPLE_SRC;
+    String finalInp = inp != null ? inp : SAMPLE_INPUT;
 
+    @SuppressWarnings("resource")  // resp closed by caller
     HTMLEscapingWriter out = new MemoizingHTMLEscapingWriter(resp);
     try {
-      renderForm(out, error, src, inp, result);
+      renderForm(out, error, finalSrc, finalInp, result);
     } catch (TemplateException ex) {
       resp.write("<!--></script></style><plaintext>");
-      ex.printStackTrace(new PrintWriter(resp));
+      @SuppressWarnings("resource")  // resp closed by caller
+      PrintWriter pw = new PrintWriter(resp);
+      ex.printStackTrace(pw);
+      pw.flush();
     }
   }
 
@@ -164,7 +170,8 @@ public class AppEngineTestbed extends HttpServlet {
     out.writeSafe(
         "<p>Please report issues to " +
         " <a href=\"mailto:mikesamuel@gmail.com\">mikesamuel@gmail.com</a> or" +
-        " <a href=\"https://github.com/mikesamuel/html-contextual-autoescaper-java/issues\">issue tracker</a>." +
+        " <a href=\"https://github.com/mikesamuel/" +
+        "html-contextual-autoescaper-java/issues\">issue tracker</a>." +
         "</p>" +
         "<form method=\"GET\" action=\"/\">" +
         "<button type=\"submit\">Evaluate Template</button>" +
@@ -247,7 +254,7 @@ final class JSONParser {
         throw error("unclosed string literal");
       }
       case '[': {
-        List<Object> list = new ArrayList<Object>();
+        List<Object> list = new ArrayList<>();
         ++off;
         while (off < end) {
           eatSpace();
@@ -269,7 +276,7 @@ final class JSONParser {
         throw error("unclosed array");
       }
       case '{': {
-        Map<String, Object> map = new LinkedHashMap<String, Object>();
+        Map<String, Object> map = new LinkedHashMap<>();
         ++off;
         while (off < end) {
           eatSpace();
@@ -318,7 +325,7 @@ final class JSONParser {
           off = e;
           return n;
         } catch (NumberFormatException ex) {
-          throw error("Bad number " + num);
+          throw error("Bad number " + num, ex);
         }
 
       default:
@@ -352,8 +359,12 @@ final class JSONParser {
   }
 
   IllegalArgumentException error(String msg) {
+    return error(msg, null);
+  }
+
+  IllegalArgumentException error(String msg, Throwable th) {
     return new IllegalArgumentException(
         "JSON: " + msg + " at " + off + " in " + s.substring(0, off) + "><"
-        + s.substring(off));
+        + s.substring(off), th);
   }
 }

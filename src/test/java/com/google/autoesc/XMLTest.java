@@ -19,9 +19,10 @@ import java.io.StringWriter;
 
 import junit.framework.TestCase;
 
-public class XMLTest extends TestCase {
+@SuppressWarnings("javadoc")
+public final class XMLTest extends TestCase {
 
-  public final void testEscapeOnto() throws Exception {
+  public static final void testEscapeOnto() throws Exception {
     String input = (
         "\0\1\2\3\4\5\6\7\10\t\n\13\14\r\16\17" +
         "\20\21\22\23\24\25\26\27\30\31\32\33\34\35\36\37" +
@@ -54,7 +55,7 @@ public class XMLTest extends TestCase {
     assertEquals(wantDecoded, decoded);
   }
 
-  public final void testNormalizeOnto() throws Exception {
+  public static final void testNormalizeOnto() throws Exception {
     String input = (
         "\0\1\2\3\4\5\6\7\10\t\n\13\14\r\16\17" +
         "\20\21\22\23\24\25\26\27\30\31\32\33\34\35\36\37" +
@@ -101,7 +102,7 @@ public class XMLTest extends TestCase {
     }
   }
 
-  public final void testEscapeCDATAOnto() throws Exception {
+  public static final void testEscapeCDATAOnto() throws Exception {
     assertCDATAEscaped("", "");
     assertCDATAEscaped("foo", "foo");
     assertCDATAEscaped("I <3 Ponies!", "I <3 Ponies!");

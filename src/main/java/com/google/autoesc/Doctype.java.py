@@ -28,7 +28,8 @@ package com.google.autoesc;
  */
 final class Doctype {
 
-  static int classify(String s, int off, int end) {
+  static int classify(String s, int offset, int end) {
+    int off = offset;
     space_loop:
     while (off < end) {
       switch (s.charAt(off)) {

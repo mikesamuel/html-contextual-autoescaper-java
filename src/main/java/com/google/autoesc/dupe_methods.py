@@ -9,7 +9,9 @@ signature_and_body = (
   # Portion of sig before "String" in group 1 incl. return type name and flags.
   # Portion of sig after "String" in group 2 incl. extra params and exceptions.
   # Body of method in group 3.
-  r'([^\n]*\(\s*)String(\s*s\s*,\s*int\s*off\s*,\s*int\s*end[^)]*\)[^{};]*)'
+  r'([^\n]*\(\s*)'
+  r'String'
+  r'(\s*s\s*,\s*int\s*off(?:set)?\s*,\s*int\s*end[^)]*\)[^{};]*)'
   r'(\{(.*?)\n  \})')
 
 def dupe_method(m):

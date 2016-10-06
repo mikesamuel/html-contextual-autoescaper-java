@@ -24,15 +24,23 @@ public final class SafeContentString implements SafeContent {
   private final String content;
   private final ContentType contentType;
 
+  /**
+   * @param content content of the given type that is safe to embed in an
+   *     origin alongside confidential user data and cryptographic secrets.
+   * @param contentType the type of content.
+   */
   public SafeContentString(String content, ContentType contentType) {
     this.content = content;
     this.contentType = contentType;
   }
 
+  /** The type of the safe content. */
+  @Override
   public ContentType getContentType() {
     return contentType;
   }
 
+  /** The safe content. */
   @Override
   public String toString() {
     return content;

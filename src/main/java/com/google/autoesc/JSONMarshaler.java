@@ -20,5 +20,9 @@ import javax.annotation.Nonnull;
  * An object that can be converted to a JSON representation.
  */
 public interface JSONMarshaler {
+  /**
+   * @return a string of JSON that can be embedded in an HTML script element.
+   *     Should not contain the case-insensitive substring {@code "</script"}.
+   */
   public @Nonnull String toJSON();
 }

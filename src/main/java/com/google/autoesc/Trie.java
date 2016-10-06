@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 public final class Trie<T> {
   private final char start;
   private final Trie<T>[] arr;
+  /** The value associated with the trie node if any. */
   public final T value;
 
   private Trie(char start, Trie<T>[] arr, @Nullable T value) {
@@ -48,19 +49,19 @@ public final class Trie<T> {
   /**
    * Returns the value corresponding to s[off:end].
    */
-  @Nullable T get(String s, int off, int end) {
+  @Nullable T get(String s, int offset, int end) {
     Trie<T> t = this;
-    while (off < end) {
-      t = t.get(s.charAt(off++));
+    for (int off = offset; off < end; ++off) {
+      t = t.get(s.charAt(off));
       if (t == null) { return null; }
     }
     return t.value;
   }
 
-  @Nullable T get(char[] s, int off, int end) {
+  @Nullable T get(char[] s, int offset, int end) {
     Trie<T> t = this;
-    while (off < end) {
-      t = t.get(s[off++]);
+    for (int off = offset; off < end; ++off) {
+      t = t.get(s[off]);
       if (t == null) { return null; }
     }
     return t.value;
@@ -70,19 +71,19 @@ public final class Trie<T> {
    * Returns the value corresponding to s[off:end] ignoring the case of ASCII
    * characters and matching only against lowercase keys.
    */
-  @Nullable T getIgnoreCase(String s, int off, int end) {
+  @Nullable T getIgnoreCase(String s, int offset, int end) {
     Trie<T> t = this;
-    while (off < end) {
-      t = t.getIgnoreCase(s.charAt(off++));
+    for (int off = offset; off < end; ++off) {
+      t = t.getIgnoreCase(s.charAt(off));
       if (t == null) { return null; }
     }
     return t.value;
   }
 
-  @Nullable T getIgnoreCase(char[] s, int off, int end) {
+  @Nullable T getIgnoreCase(char[] s, int offset, int end) {
     Trie<T> t = this;
-    while (off < end) {
-      t = t.getIgnoreCase(s[off++]);
+    for (int off = offset; off < end; ++off) {
+      t = t.getIgnoreCase(s[off]);
       if (t == null) { return null; }
     }
     return t.value;
@@ -97,23 +98,23 @@ public final class Trie<T> {
 
   private void toString(StringBuilder sb, int depth) {
     sb.append(value).append(" {");
-    ++depth;
+    int childDepth = depth + 1;
     for (int i = 0; i < arr.length; ++i) {
       if (arr[i] == null) { continue; }
       sb.append('\n');
-      for (int j = depth; --j >= 0;) { sb.append("  "); }
+      for (int j = childDepth; --j >= 0;) { sb.append("  "); }
       sb.append('\'').append((char) (i + start)).append("':");
-      arr[i].toString(sb, depth);
+      arr[i].toString(sb, childDepth);
     }
     sb.append("}");
   }
 
-  static <S> Builder<S> builder() { return new Builder<S>(null, (char) 0); }
+  static <S> Builder<S> builder() { return new Builder<>(null, (char) 0); }
 
   static final class Builder<S> {
     S value;
     final char ch;
-    final List<Builder<S>> children = new ArrayList<Builder<S>>();
+    final List<Builder<S>> children = new ArrayList<>();
 
     Builder(@Nullable S value, char ch) {
       this.value = value;
@@ -126,25 +127,26 @@ public final class Trie<T> {
     }
 
     static <S> void put(Builder<S> b, String s, @Nullable S newValue) {
+      Builder<S> cb = b;
       for (int i = 0, n = s.length(); i < n; ++i) {
         char ch = s.charAt(i);
         Builder<S> next = null;
-        for (Builder<S> child : b.children) {
+        for (Builder<S> child : cb.children) {
           if (child.ch == ch) {
             next = child;
             break;
           }
         }
         if (next == null) {
-          next = new Builder<S>(null, ch);
-          b.children.add(next);
+          next = new Builder<>(null, ch);
+          cb.children.add(next);
         }
-        b = next;
+        cb = next;
       }
-      b.value = newValue;
+      cb.value = newValue;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "synthetic-access" })
     Trie<S> build() {
       Trie<S>[] arr;
       int n = children.size();
@@ -153,6 +155,7 @@ public final class Trie<T> {
         arr = (Trie<S>[]) NO_TRIES;
       } else {
         Collections.sort(children, new Comparator<Builder<?>>() {
+            @Override
             public int compare(Builder<?> a, Builder<?> b) {
               return a.ch - b.ch;
             }
@@ -165,7 +168,7 @@ public final class Trie<T> {
           arr[b.ch - min] = b.build();
         }
       }
-      return new Trie<S>(min, arr, value);
+      return new Trie<>(min, arr, value);
     }
   }
 

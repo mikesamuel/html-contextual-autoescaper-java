@@ -17,7 +17,8 @@ package com.google.autoesc;
 import java.io.StringWriter;
 import junit.framework.TestCase;
 
-public class SafeContentTest extends TestCase {
+@SuppressWarnings("javadoc")
+public final class SafeContentTest extends TestCase {
 
   private static final Object[] INPUTS = {
     "<b> \"foo%\" O'Reilly &bar;",
@@ -30,7 +31,8 @@ public class SafeContentTest extends TestCase {
   };
 
   /** @param goldens correspond to INPUTS */
-  private void assertInterp(String tmpl, String... goldens) throws Exception {
+  private static void assertInterp(String tmpl, String... goldens)
+      throws Exception {
     assertEquals(INPUTS.length, goldens.length);
     int prefixLen = tmpl.indexOf("{{.}}");
     String prefix = tmpl.substring(0, prefixLen);
@@ -42,11 +44,11 @@ public class SafeContentTest extends TestCase {
            ? " " + ((SafeContent) input).getContentType()
            : "");
       StringWriter buf = new StringWriter();
-      HTMLEscapingWriter w = new HTMLEscapingWriter(buf);
-      w.writeSafe(prefix);
-      w.write(input);
-      w.writeSafe(suffix);
-      w.close();
+      try (HTMLEscapingWriter w = new HTMLEscapingWriter(buf)) {
+        w.writeSafe(prefix);
+        w.write(input);
+        w.writeSafe(suffix);
+      }
       String actual = buf.toString();
       String testdesc = "`" + tmpl + "` with " + type + " -> `" + actual + "`";
       assertTrue("prefix " + testdesc, actual.startsWith(prefix));
@@ -57,11 +59,11 @@ public class SafeContentTest extends TestCase {
       if (input instanceof String) {
         String sInput = (String) input;
         buf = new StringWriter();
-        w = new HTMLEscapingWriter(buf);
-        w.writeSafe(prefix);
-        w.write(("'`," + sInput).toCharArray(), 3, sInput.length());
-        w.writeSafe(suffix);
-        w.close();
+        try (HTMLEscapingWriter w = new HTMLEscapingWriter(buf)) {
+          w.writeSafe(prefix);
+          w.write(("'`," + sInput).toCharArray(), 3, sInput.length());
+          w.writeSafe(suffix);
+        }
         String actual2 = buf.toString();
         testdesc = "`" + tmpl + "` char with " + type + " -> `" + actual2 + "`";
         assertTrue(
@@ -75,7 +77,7 @@ public class SafeContentTest extends TestCase {
     }
   }
 
-  public final void testSafeContentInterp() throws Exception {
+  public static final void testSafeContentInterp() throws Exception {
     // For each content sensitive escaper, see how it does on
     // each of the typed strings above.
     assertInterp("<style>{{.}} { color: blue }</style>",

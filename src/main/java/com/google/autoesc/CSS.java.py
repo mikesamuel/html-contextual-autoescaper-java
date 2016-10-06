@@ -46,7 +46,8 @@ class CSS {
     * maybeDecodeCSS decodes CSS3 escape sequences returning null if there
     * are no encoded chars.
     */
-  static @Nullable String maybeDecodeCSS(String s, int off, int end) {
+  static @Nullable String maybeDecodeCSS(String s, int offset, int end) {
+    int off = offset;
     int i = off;
     while (i < end && s.charAt(i) != '\\') { ++i; }
     if (i == end) {

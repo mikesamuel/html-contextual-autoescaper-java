@@ -166,7 +166,8 @@ class Attr {
     return attrType(name, 0, name.length());
   }
 
-  static ContentType attrType(String s, int off, int end) {
+  static ContentType attrType(String s, int offset, int end) {
+    int off = offset;
     if (CharsUtil.startsWithIgnoreCase(s, off, end, "data-")) {
       // Strip data- so that custom attribute heuristics below are
       // widely applied.

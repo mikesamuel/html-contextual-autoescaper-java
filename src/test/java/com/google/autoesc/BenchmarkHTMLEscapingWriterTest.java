@@ -23,40 +23,44 @@ import java.util.List;
 
 import junit.framework.TestCase;
 
-public class BenchmarkHTMLEscapingWriterTest extends TestCase {
+@SuppressWarnings("javadoc")
+public final class BenchmarkHTMLEscapingWriterTest extends TestCase {
   static final int N_RUNS = 100;
   static final int N_ROWS = 10000;
 
   static final NumberFormat TWO_DEC_PLACES = new DecimalFormat("0.##");
 
-  public final void testEquivalence() throws Exception {
+  public static final void testEquivalence() throws Exception {
     StringWriter sw1 = new StringWriter();
-    HTMLEscapingWriter w1 = new HTMLEscapingWriter(sw1);
-    runString(w1);
-
     StringWriter sw2 = new StringWriter();
-    MemoizingHTMLEscapingWriter w2 = new MemoizingHTMLEscapingWriter(sw2);
-    runString(w2);
+    try (HTMLEscapingWriter w1 = new HTMLEscapingWriter(sw1)) {
+      runString(w1);
 
-    // First time through, are the two the same?
-    assertEquals("first pass", sw1.toString(), sw2.toString());
+      try (MemoizingHTMLEscapingWriter w2
+           = new MemoizingHTMLEscapingWriter(sw2)) {
+        runString(w2);
 
-    runString(w1);
-    runString(w2);
+        // First time through, are the two the same?
+        assertEquals("first pass", sw1.toString(), sw2.toString());
+
+        runString(w1);
+        runString(w2);
+      }
+    }
 
     assertEquals("second pass", sw1.toString(), sw2.toString());
   }
 
-  public final void testWriteSafeSpeed() throws Exception {
+  public static final void testWriteSafeSpeed() throws Exception {
     // Warm up the JIT.
     timeBaseline();
     timeNormalString();
     timeNormalChars();
     timeMemoized();
 
-    List<Object> bmark = new ArrayList<Object>();
-    List<Object> time = new ArrayList<Object>();
-    List<Object> ratio = new ArrayList<Object>();
+    List<Object> bmark = new ArrayList<>();
+    List<Object> time = new ArrayList<>();
+    List<Object> ratio = new ArrayList<>();
     bmark.add("");
     time.add("Time us");
     ratio.add("t/baseline");
@@ -85,7 +89,7 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     TestUtil.writeTable(bmark.toArray(), time.toArray(), ratio.toArray());
   }
 
-  private long timeBaseline() throws Exception {
+  private static long timeBaseline() throws Exception {
     long t0 = System.nanoTime();
     for (int runs = N_RUNS; --runs >= 0;) {
       StringWriter w = new StringWriter();
@@ -95,34 +99,38 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
     return (t1 - t0) / 1000;
   }
 
-  private long timeNormalString() throws Exception {
+  private static long timeNormalString() throws Exception {
     long t0 = System.nanoTime();
     for (int runs = N_RUNS; --runs >= 0;) {
       StringWriter sw = new StringWriter();
-      HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
-      runString(w);
+      try (HTMLEscapingWriter w = new HTMLEscapingWriter(sw)) {
+        runString(w);
+      }
     }
     long t1 = System.nanoTime();
     return (t1 - t0) / 1000;
   }
 
-  private long timeNormalChars() throws Exception {
+  private static long timeNormalChars() throws Exception {
     long t0 = System.nanoTime();
     for (int runs = N_RUNS; --runs >= 0;) {
       StringWriter sw = new StringWriter();
-      HTMLEscapingWriter w = new HTMLEscapingWriter(sw);
-      runChars(w);
+      try (HTMLEscapingWriter w = new HTMLEscapingWriter(sw)) {
+        runChars(w);
+      }
     }
     long t1 = System.nanoTime();
     return (t1 - t0) / 1000;
   }
 
-  private long timeMemoized() throws Exception {
+  private static long timeMemoized() throws Exception {
     long t0 = System.nanoTime();
     for (int runs = N_RUNS; --runs >= 0;) {
       StringWriter sw = new StringWriter();
-      MemoizingHTMLEscapingWriter w = new MemoizingHTMLEscapingWriter(sw);
-      runString(w);
+      try (MemoizingHTMLEscapingWriter w =
+               new MemoizingHTMLEscapingWriter(sw)) {
+        runString(w);
+      }
     }
     long t1 = System.nanoTime();
     return (t1 - t0) / 1000;
@@ -148,6 +156,7 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
       w.writeSafe(ROW_END);
     }
     w.writeSafe(FOOTER);
+    w.flush();
   }
 
   private static void runChars(HTMLEscapingWriter w) throws Exception {
@@ -158,6 +167,7 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
       w.writeSafe(ROW_END_CHARS, 0, ROW_END_CHARS.length);
     }
     w.writeSafe(FOOTER_CHARS, 0, FOOTER_CHARS.length);
+    w.flush();
   }
 
   private static void runBaseline(Writer w) throws Exception {
@@ -173,6 +183,7 @@ public class BenchmarkHTMLEscapingWriterTest extends TestCase {
   /**
    * Main method invoked by make profile
    */
+  @SuppressWarnings("resource")  // Uses in-memory buffers
   public static void main(String... argv) throws Exception {
     runString(new HTMLEscapingWriter(new StringWriter(1 << 18)));
     runChars(new HTMLEscapingWriter(new StringWriter(1 << 18)));

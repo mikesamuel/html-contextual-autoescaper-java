@@ -18,6 +18,7 @@ import java.util.Locale;
 
 import junit.framework.TestCase;
 
+@SuppressWarnings("javadoc")
 public final class DoctypeTest extends TestCase {
 
   static final class Sample {
@@ -30,7 +31,7 @@ public final class DoctypeTest extends TestCase {
     }
   }
 
-  public final void testClassify() {
+  public static final void testClassify() {
     Sample[] samples = new Sample[] {
       // From http://www.w3.org/QA/2002/04/valid-dtd-list.html
       new Sample(

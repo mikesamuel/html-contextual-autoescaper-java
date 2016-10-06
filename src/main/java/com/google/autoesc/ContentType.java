@@ -21,6 +21,7 @@ import javax.annotation.Nullable;
  */
 public enum ContentType {
 
+  /** text/plain */
   Plain,
   /**
    * CSS encapsulates known safe content that matches any of:<ul>

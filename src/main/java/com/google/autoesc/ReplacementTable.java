@@ -94,7 +94,9 @@ class ReplacementTable {
     escapeOnto(s, 0, s.length(), out);
   }
 
-  void escapeOnto(String s, int off, int end, Writer out) throws IOException {
+  void escapeOnto(String s, int offset, int end, Writer out)
+      throws IOException {
+    int off = offset;
     if (off == end) {
       writeEmpty(out);
       return;
@@ -131,11 +133,13 @@ class ReplacementTable {
     escapeOnto(s, 0, len, out);
   }
 
-  void escapeOnto(char[] s, int off, int end, Writer out) throws IOException {
-    if (off == end) {
+  void escapeOnto(char[] s, int offset, int end, Writer out)
+      throws IOException {
+    if (offset == end) {
       writeEmpty(out);
       return;
     }
+    int off = offset;
     for (int i = off; i < end; ++i) {
       char ch = s[i];
       String repl = replacement(ch);
@@ -164,6 +168,7 @@ class ReplacementTable {
    * @param lookahead The next code-unit or -1 if not known.
    * @param out The writer to receive the output.
    */
+  @SuppressWarnings("static-method")  // Overridable
   protected void writeReplacement(
       int cp, String repl, int lookahead, Writer out)
       throws IOException {
