@@ -74,7 +74,7 @@ might correspond to the sequence of calls
 
 which result in the output
 
-```
+```html
 <div style="color: blue">
   <a href="/blue?q=%3cCincinatti%3e"
    onclick="alert('Hello, \x3cCincinatti\x3e!');return false">
@@ -85,4 +85,4 @@ which result in the output
         w = "\x26lt;Cincinatti\x26gt;";
   })();</script>
 </div>
-```html
+```
